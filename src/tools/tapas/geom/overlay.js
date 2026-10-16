@@ -72,6 +72,7 @@ export function generateOverlay(kit, p) {
   if (cuts.length) body = kit.sub(body, cuts);
 
   let patternBodies = [];
+  let plainBody = null; // the face before the image is cut into it, for the live preview
   if (pat.id !== "none") {
     const keepOut = placed.map((m) =>
       kit.move(windowShape(kit, MODULES[m.type].win, mods.margin + pat.margin), m.x, m.y),
@@ -80,6 +81,7 @@ export function generateOverlay(kit, p) {
     if (pat.mode === "cutthrough")
       area = kit.inter2d(area, kit.rrect(pocketW - 0.8, pocketH - 0.8, Math.max(0, pocketR - 0.4)));
     if (keepOut.length) area = kit.csSub(area, keepOut);
+    plainBody = pat.id === "image" ? body : null;
     const r = decorate(kit, p, body, { area, outline, face: o.face, lift });
     ({ body, patternBodies } = r);
     if (r.warning) warnings.push(r.warning);
@@ -91,6 +93,7 @@ export function generateOverlay(kit, p) {
       name: "cubretapa",
       body,
       patternBodies,
+      plainBody,
       bounds: outline.bounds(),
       total,
       pocket: [pocketW, pocketH, depth],

@@ -26,6 +26,7 @@ export function generateFrame(kit, p) {
 
   const warnings = [];
   let patternBodies = [];
+  let plainBody = null; // the face before the image is cut into it, for the live preview
   if (pat.id !== "none") {
     const hole = kit.rrect(
       pocketW + 2 * pat.margin,
@@ -33,6 +34,7 @@ export function generateFrame(kit, p) {
       pocketR + pat.margin,
     );
     const area = kit.csSub(kit.own(outline.offset(-pat.margin, "Round", 2, 32)), hole);
+    plainBody = pat.id === "image" ? body : null;
     const r = decorate(kit, p, body, { area, outline, face: f.h, lift });
     ({ body, patternBodies } = r);
     if (r.warning) warnings.push(r.warning);
@@ -43,6 +45,7 @@ export function generateFrame(kit, p) {
       name: "marco",
       body,
       patternBodies,
+      plainBody,
       warnings,
       bounds: outline.bounds(),
       total,

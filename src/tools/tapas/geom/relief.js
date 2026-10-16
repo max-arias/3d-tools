@@ -59,7 +59,17 @@ const concat = (meshes) => {
  */
 export function packResult(
   kit,
-  { name, body, patternBody, patternBodies, bounds, total, pocket = null, warnings = [] },
+  {
+    name,
+    body,
+    patternBody,
+    patternBodies,
+    plainBody,
+    bounds,
+    total,
+    pocket = null,
+    warnings = [],
+  },
 ) {
   const origin = [bounds.min[0], bounds.min[1], 0];
   const main = kit.export(body, origin);
@@ -82,6 +92,7 @@ export function packResult(
   return {
     name,
     flip: true,
+    plain: plainBody ? kit.export(plainBody, origin).mesh : null,
     bodies,
     mesh: bodies.length > 1 ? concat(bodies.map((b) => b.mesh)) : main.mesh,
     size: [bounds.max[0] - bounds.min[0], bounds.max[1] - bounds.min[1], total],

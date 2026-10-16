@@ -1,6 +1,7 @@
 import { createStore } from "../../../shell/store.js";
 import { run } from "../lib/client.js";
 import { houseFromHash, loadHouse, newItem, saveHouse, sanitizeHouse } from "../model/house.js";
+import { placementKey } from "./drag.js";
 import { projectFromHash, sanitize } from "../model/project.js";
 import { t } from "../lib/i18n.js";
 
@@ -77,24 +78,59 @@ export const setHouse = (raw) => {
   project.set(structuredClone(next.items.find((i) => i.id === next.active).project));
 };
 
-let seq = 0;
+// Builds are latest-wins: the worker cannot cancel a job, so while one runs we only remember that
+// another is wanted and start it when the first finishes. Dragging holds builds until you let go.
 let timer;
+let running = false;
+let again = false;
+let held = false;
+let wanted = false;
+
 function generate() {
-  const mine = ++seq;
-  const { ax, ay } = project.get().pattern; // where the image sits in this build, for the drag preview
+  if (running) {
+    again = true;
+    return;
+  }
+  running = true;
+  again = false;
+  const snapshot = project.get();
+  const built = placementKey(snapshot); // what the finished build will contain, for the live preview
   result.set({ status: "loading" });
-  run("generate", project.get()).then(
-    (part) => mine === seq && result.set({ status: "ok", part, snap: { ax, ay }, error: null }),
-    (error) => mine === seq && result.set({ status: "error", error: error.message }),
-  );
+  run("generate", snapshot)
+    .then(
+      (part) => result.set({ status: "ok", part, built, error: null }),
+      (error) => result.set({ status: "error", error: error.message }),
+    )
+    .finally(() => {
+      running = false;
+      if (again && !held) generate();
+    });
+}
+
+function schedule() {
+  if (held) {
+    wanted = true;
+    return;
+  }
+  clearTimeout(timer);
+  timer = setTimeout(generate, 200);
+}
+
+/** While held, edits do not start builds; releasing starts one straight away if anything changed. */
+export function holdGeneration(on) {
+  held = on;
+  if (!on && wanted) {
+    wanted = false;
+    clearTimeout(timer);
+    generate();
+  }
 }
 
 export function startApp() {
   history.replaceState(null, "", location.pathname + location.search); // the share hash is consumed
   project.subscribe(() => {
     syncActive();
-    clearTimeout(timer);
-    timer = setTimeout(generate, 200);
+    schedule();
   });
   house.subscribe((h) => saveHouse({ items: h.items, active: h.active }));
   saveHouse(house.get());

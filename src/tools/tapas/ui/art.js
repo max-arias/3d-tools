@@ -280,17 +280,19 @@ export async function importFile(file, opts) {
   return art;
 }
 
-/** Draw the traced art, in its colours, onto a canvas. */
-export function drawThumb(canvas, art) {
-  const size = 150;
-  const k = size / Math.max(art.w, art.h);
-  canvas.width = Math.ceil(art.w * k);
-  canvas.height = Math.ceil(art.h * k);
+/**
+ * Draw the art in its colours on a canvas, `side` px along the longer edge. Layers are painted in
+ * order; a switched-off layer erases what is beneath it, like the real build (a white hole stays a hole).
+ */
+export function drawArt(canvas, art, side) {
+  const k = side / Math.max(art.w, art.h);
+  canvas.width = Math.max(1, Math.ceil(art.w * k));
+  canvas.height = Math.max(1, Math.ceil(art.h * k));
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (const layer of art.layers) {
-    if (!layer.on) continue;
-    ctx.fillStyle = layer.c;
+    ctx.globalCompositeOperation = layer.on ? "source-over" : "destination-out";
+    ctx.fillStyle = layer.on ? layer.c : "#000";
     for (const shape of layer.s) {
       ctx.beginPath();
       for (const flat of shape.p) {
@@ -301,4 +303,7 @@ export function drawThumb(canvas, art) {
       ctx.fill(shape.r === "e" ? "evenodd" : "nonzero");
     }
   }
+  ctx.globalCompositeOperation = "source-over";
 }
+
+export const drawThumb = (canvas, art) => drawArt(canvas, art, 150);

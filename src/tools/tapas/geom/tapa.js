@@ -71,12 +71,14 @@ export function generateTapa(kit, p) {
     );
 
   let patternBodies = [];
+  let plainBody = null; // the face before the image is cut into it, for the live preview
   if (pat.id !== "none") {
     const keepOut = placed.map((m) =>
       kit.move(windowShape(kit, MODULES[m.type].win, t.winMargin + pat.margin), m.x, m.y),
     );
     let area = kit.own(outline.offset(-pat.margin, "Round", 2, 32));
     if (keepOut.length) area = kit.csSub(area, keepOut);
+    plainBody = pat.id === "image" ? body : null;
     const r = decorate(kit, p, body, { area, outline, face: t.face, lift });
     ({ body, patternBodies } = r);
     if (r.warning) warnings.push(r.warning);
@@ -87,6 +89,7 @@ export function generateTapa(kit, p) {
       name: "tapa",
       body,
       patternBodies,
+      plainBody,
       bounds: outline.bounds(),
       total,
       pocket: [bw, bh, t.skirt],

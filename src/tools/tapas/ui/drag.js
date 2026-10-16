@@ -15,9 +15,45 @@ export function dragPlacement({ start, hit, ax, ay }) {
   };
 }
 
-/** How far to shift the already-built image so it matches the placement that is not built yet. */
-export function previewOffset(now, built) {
-  return { x: -(now.ax - built.ax), y: now.ay - built.ay };
+/** Size of the image's box in mm, for a given size of its longer side. */
+export function artBox(art, size) {
+  const longest = Math.max(art.w, art.h);
+  return { w: (size * art.w) / longest, h: (size * art.h) / longest };
+}
+
+/**
+ * Is a point on the face (view mm) inside the image's box? place = { ax, ay, rot, mirror }.
+ * Undoes the placement: translate, rotate back, un-mirror, then compare with the box.
+ */
+export function insideArt(hit, place, box) {
+  const x = -hit.x - place.ax; // view x runs the opposite way to the design's x
+  const y = hit.y - place.ay;
+  const a = (-place.rot * Math.PI) / 180;
+  let u = x * Math.cos(a) - y * Math.sin(a);
+  const v = x * Math.sin(a) + y * Math.cos(a);
+  if (place.mirror) u = -u;
+  return Math.abs(u) <= box.w / 2 && Math.abs(v) <= box.h / 2;
+}
+
+/** Everything that decides where and how the image is built. Equal keys mean the build is current. */
+export function placementKey(p) {
+  const pat = p.pattern;
+  const art = p.art
+    ? `${p.art.w}x${p.art.h}:${p.art.layers.map((l) => `${l.c}${l.on ? 1 : 0}${l.s.length}`).join("|")}`
+    : "";
+  return [
+    p.product,
+    pat.id,
+    pat.mode,
+    pat.ax,
+    pat.ay,
+    pat.size,
+    pat.rot,
+    pat.mirror,
+    pat.margin,
+    pat.depth,
+    art,
+  ].join("/");
 }
 
 /** Wheel zoom: a few percent per notch, kept inside the size limits. */

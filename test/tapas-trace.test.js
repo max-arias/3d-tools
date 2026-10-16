@@ -325,16 +325,60 @@ test("soft anti-aliased edges do not take a colour slot", () => {
   ); // blue
 });
 
-import { LIMIT, dragPlacement, previewOffset, wheelSize } from "../src/tools/tapas/ui/drag.js";
+import {
+  LIMIT,
+  artBox,
+  dragPlacement,
+  insideArt,
+  placementKey,
+  wheelSize,
+} from "../src/tools/tapas/ui/drag.js";
 
 test("dragging right on the face moves the image right as seen (the cover is shown turned over)", () => {
   const start = { x: 0, y: 0 };
   // view x grows to the right; design x runs the other way, so ax shrinks
   expect(dragPlacement({ start, hit: { x: 10, y: 0 }, ax: 0, ay: 0 })).toEqual({ ax: -10, ay: 0 });
   expect(dragPlacement({ start, hit: { x: 0, y: 5 }, ax: 3, ay: 4 })).toEqual({ ax: 3, ay: 9 });
-  // the shown shift (view) and the stored shift (design) describe the same movement
-  const moved = dragPlacement({ start, hit: { x: 10, y: 5 }, ax: 0, ay: 0 });
-  expect(previewOffset(moved, { ax: 0, ay: 0 })).toEqual({ x: 10, y: 5 });
+});
+
+test("a press counts as on the image only inside its box, however it is moved, rotated or mirrored", () => {
+  const box = artBox({ w: 4095, h: 1365 }, 60); // 60 x 20 mm
+  expect(box).toEqual({ w: 60, h: 20 });
+  const at = { ax: 0, ay: 0, rot: 0, mirror: false };
+  expect(insideArt({ x: 25, y: 8 }, at, box)).toBe(true);
+  expect(insideArt({ x: 25, y: 12 }, at, box)).toBe(false);
+  // moved: the stored ax runs opposite to the view's x
+  const moved = { ...at, ax: -30 };
+  expect(insideArt({ x: 30, y: 0 }, moved, box)).toBe(true);
+  expect(insideArt({ x: -30, y: 0 }, moved, box)).toBe(false);
+  // turned a quarter: the long side now runs up the plate
+  const turned = { ...at, rot: 90 };
+  expect(insideArt({ x: 0, y: 25 }, turned, box)).toBe(true);
+  expect(insideArt({ x: 25, y: 0 }, turned, box)).toBe(false);
+  // mirroring a symmetric box changes nothing; an offset one still lines up
+  expect(insideArt({ x: 25, y: 8 }, { ...at, mirror: true }, box)).toBe(true);
+});
+
+test("the build is current only while nothing that places the image has changed", () => {
+  const p = withArt("inlay");
+  const key = placementKey(p);
+  expect(placementKey(structuredClone(p))).toBe(key); // copies are equal
+  for (const change of [
+    (q) => (q.pattern.ax = 5),
+    (q) => (q.pattern.ay = 5),
+    (q) => (q.pattern.size = 41),
+    (q) => (q.pattern.rot = 15),
+    (q) => (q.pattern.mirror = true),
+    (q) => (q.art.layers[0].on = false),
+    (q) => (q.art.layers[0].c = "#123456"),
+  ]) {
+    const q = structuredClone(p);
+    change(q);
+    expect(placementKey(q)).not.toBe(key);
+  }
+  const unrelated = structuredClone(p);
+  unrelated.color = "#112233"; // the cover colour does not move the image
+  expect(placementKey(unrelated)).toBe(key);
 });
 
 test("the image may be dragged far off the face, within a limit", () => {
@@ -361,4 +405,17 @@ test("an image placed partly off the plate still builds, and prints only what st
   expect(off.valid).toBe(true);
   expect(off.bodies).toHaveLength(1);
   expect(off.warnings).toContain("artOutside");
+});
+
+test("with an image, the build also returns the plain face (no recess) for the live preview", () => {
+  const withImg = build(generateOverlay, withArt("inlay"));
+  const plain = build(generateOverlay, {
+    ...withArt("inlay"),
+    pattern: { ...withArt("inlay").pattern, id: "none" },
+  });
+  expect(withImg.plain).toBeTruthy();
+  expect(withImg.plain.indices.length).toBeGreaterThan(0);
+  // the plain face is the face before cutting: it matches a build with no pattern at all
+  expect(withImg.plain.positions.length).toBe(plain.mesh.positions.length);
+  expect(plain.plain).toBeNull();
 });

@@ -4,8 +4,9 @@ import { h } from "../../../shell/h.js";
 import { MODULES } from "../model/modules.js";
 import { layoutModules } from "../geom/overlay.js";
 import { langStore, t } from "../lib/i18n.js";
-import { dragPlacement, previewOffset, wheelSize } from "./drag.js";
-import { project, result, update, view } from "./state.js";
+import { drawArt } from "./art.js";
+import { artBox, dragPlacement, insideArt, placementKey, wheelSize } from "./drag.js";
+import { holdGeneration, project, result, update, view } from "./state.js";
 
 const css = (name) =>
   getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#888";
@@ -299,17 +300,70 @@ export function createStage() {
       mesh.userData.role = body.role;
       cover.add(mesh);
     }
-    applyArtOffset();
+    if (part.plain) {
+      // The face without the image cut into it: shown while the image is being moved.
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(part.plain.positions, 3));
+      geo.setIndex(new THREE.BufferAttribute(part.plain.indices, 1));
+      geo.computeVertexNormals();
+      geo.translate(-part.center[0], -part.center[1], -part.size[2]);
+      const mesh = new THREE.Mesh(geo, mainMat);
+      mesh.rotation.y = Math.PI;
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.userData.role = "plain";
+      cover.add(mesh);
+    }
+    refreshArt();
   }
 
-  // While you drag, the image already built is shifted to where it is going; once the new build
-  // arrives the offset is zero again.
-  function applyArtOffset() {
-    const now = project.get().pattern;
-    const built = result.get().snap;
-    const off = now.id === "image" && built ? previewOffset(now, built) : { x: 0, y: 0 };
-    for (const m of cover.children)
-      if (m.userData.role === "pattern") m.position.set(off.x, off.y, 0);
+  // ---- the image while it is being moved ---------------------------------------------------------
+  // A build takes a moment, so until it catches up the cover shows its plain face plus a flat, live
+  // copy of the image. That way no half-updated recess is ever visible, and size and rotation edits
+  // preview instantly too.
+  const decalMat = new THREE.MeshBasicMaterial({
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const decalMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), decalMat);
+  const decal = new THREE.Group();
+  decal.scale.x = -1; // the cover is shown turned over: view x is the design's x reversed
+  decal.add(decalMesh);
+  decal.visible = false;
+  holder.add(decal);
+  let decalKey = "";
+
+  function refreshArt() {
+    const p = project.get();
+    const { part, built } = result.get();
+    const img = p.pattern.id === "image" && p.art && part;
+    const stale = !!img && built !== placementKey(p);
+    const plain = cover.children.find((m) => m.userData.role === "plain");
+    for (const m of cover.children) {
+      const role = m.userData.role;
+      if (role === "plain") m.visible = stale;
+      else m.visible = !(stale && plain); // swap the built cover for its plain face
+    }
+    decal.visible = stale;
+    if (!stale) return;
+    const key =
+      p.art.w + "x" + p.art.h + p.art.layers.map((l) => l.c + (l.on ? 1 : 0) + l.s.length).join();
+    if (key !== decalKey) {
+      decalKey = key;
+      const canvas = document.createElement("canvas");
+      drawArt(canvas, p.art, 640);
+      decalMat.map?.dispose();
+      decalMat.map = new THREE.CanvasTexture(canvas);
+      decalMat.map.colorSpace = THREE.SRGBColorSpace;
+      decalMat.needsUpdate = true;
+    }
+    const { w, h: hh } = artBox(p.art, p.pattern.size);
+    decalMesh.position.set(p.pattern.ax, p.pattern.ay, 0);
+    decalMesh.rotation.z = (p.pattern.rot * Math.PI) / 180;
+    decalMesh.scale.set((p.pattern.mirror ? -1 : 1) * w, hh, 1);
+    const lift = p.pattern.mode === "raised" ? p.pattern.depth : 0;
+    decal.position.z = part.size[2] - lift + 0.06; // just above the face
   }
 
   // The hardware as it is today: the plate and the module faces, in view coordinates.
@@ -342,11 +396,11 @@ export function createStage() {
     stockMods.visible = prod !== "keycap";
     stockPlate.visible = prod !== "keycap" && prod !== "tapa";
     const wallMode = mode === "wall";
-    orbit.enabled = !wallMode && !moving;
-    hallCtl.enabled = wallMode && !moving;
-    renderer.domElement.style.cursor = moving ? "move" : "";
-    renderer.domElement.style.touchAction = moving ? "none" : "";
-    hintbar.textContent = moving ? t("moveHint") : "";
+    if (!drag) {
+      orbit.enabled = !wallMode;
+      hallCtl.enabled = wallMode;
+    }
+    hintbar.textContent = imageActive() ? t("moveHint") : "";
     hall.visible = wallMode;
     studio.visible = !wallMode;
     backdrop.visible = !wallMode;
@@ -354,7 +408,7 @@ export function createStage() {
   }
 
   let shot = "mid";
-  let moving = false; // dragging moves the uploaded image instead of orbiting the camera
+  let drag = null; // set while the uploaded image is being dragged
   const imageActive = () => project.get().pattern.id === "image" && !!project.get().art;
   function setShot(name) {
     shot = name;
@@ -411,20 +465,6 @@ export function createStage() {
             v.stock,
             (s) => (view.set({ stock: s }), apply(), paintTools()),
           ),
-        imageActive() &&
-          h(
-            "button",
-            {
-              class: "move-btn",
-              "aria-pressed": String(moving),
-              onclick: () => {
-                moving = !moving;
-                apply();
-                paintTools();
-              },
-            },
-            t("moveArt"),
-          ),
       ].filter(Boolean),
     );
     const p = project.get();
@@ -458,12 +498,11 @@ export function createStage() {
   project.subscribe((p) => {
     paintColors();
     showStock(p);
-    applyArtOffset();
+    refreshArt();
     const image = imageActive();
     if (p.product !== lastProduct || image !== lastImage) {
       lastProduct = p.product;
       lastImage = image;
-      if (!image) moving = false;
       paintTools();
     }
     apply();
@@ -527,6 +566,7 @@ export function createStage() {
   });
 
   // ---- dragging the image ---------------------------------------------------------------------
+  // Drag the image to move it; drag anywhere else to orbit. Shift + wheel resizes it.
   const dom = renderer.domElement;
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -540,22 +580,39 @@ export function createStage() {
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -top);
     return ray.ray.intersectPlane(plane, hitPoint) ? { x: hitPoint.x, y: hitPoint.y } : null;
   }
-  let drag = null;
+  const overImage = (ev) => {
+    const p = project.get();
+    if (!imageActive()) return false;
+    const hit = faceHit(ev);
+    return !!hit && insideArt(hit, p.pattern, artBox(p.art, p.pattern.size));
+  };
   let revTimer;
   const bumpPanel = () => {
     clearTimeout(revTimer);
     revTimer = setTimeout(() => view.set({ artRev: (view.get().artRev ?? 0) + 1 }), 150);
   };
-  dom.addEventListener("pointerdown", (ev) => {
-    if (!moving) return;
-    const start = faceHit(ev);
-    if (!start) return;
-    const { ax, ay } = project.get().pattern;
-    drag = { start, ax, ay };
-    dom.setPointerCapture(ev.pointerId);
-  });
+  // Capture phase on the wrapper, so this runs before the camera controls see the press.
+  canvasWrap.addEventListener(
+    "pointerdown",
+    (ev) => {
+      if (ev.button !== 0 || !overImage(ev)) return;
+      const { ax, ay } = project.get().pattern;
+      drag = { start: faceHit(ev), ax, ay };
+      orbit.enabled = false;
+      hallCtl.enabled = false;
+      holdGeneration(true);
+      dom.setPointerCapture(ev.pointerId);
+      dom.style.cursor = "grabbing";
+      ev.stopPropagation();
+      ev.preventDefault();
+    },
+    true,
+  );
   dom.addEventListener("pointermove", (ev) => {
-    if (!drag) return;
+    if (!drag) {
+      if (ev.buttons === 0) dom.style.cursor = overImage(ev) ? "grab" : "";
+      return;
+    }
     const hit = faceHit(ev);
     if (!hit) return;
     const next = dragPlacement({ ...drag, hit });
@@ -567,19 +624,23 @@ export function createStage() {
   const endDrag = () => {
     if (!drag) return;
     drag = null;
+    dom.style.cursor = "";
+    apply(); // gives the camera back
+    holdGeneration(false); // builds the new placement now
     bumpPanel();
   };
   dom.addEventListener("pointerup", endDrag);
   dom.addEventListener("pointercancel", endDrag);
-  dom.addEventListener(
+  canvasWrap.addEventListener(
     "wheel",
     (ev) => {
-      if (!moving) return;
+      if (!ev.shiftKey || !overImage(ev)) return; // a plain wheel zooms the camera as before
       ev.preventDefault();
-      update((q) => (q.pattern.size = wheelSize(q.pattern.size, ev.deltaY)));
+      ev.stopPropagation();
+      update((q) => (q.pattern.size = wheelSize(q.pattern.size, ev.deltaY || ev.deltaX)));
       bumpPanel();
     },
-    { passive: false },
+    { passive: false, capture: true },
   );
 
   paintColors();

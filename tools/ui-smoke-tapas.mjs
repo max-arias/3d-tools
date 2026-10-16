@@ -93,10 +93,9 @@ for (const [name, viewport] of [
     (await page.locator(".layer").count()) === 2,
     `${name}: SVG upload gives two colour layers (background dropped)`,
   );
-  // Move mode: dragging on the preview moves the image, and the position fields follow.
+  // Dragging the image in the preview moves it (no mode button), and the position fields follow.
   const posX = () =>
     page.locator(".row", { hasText: "Posición horizontal" }).locator("input").first().inputValue();
-  await page.locator("button.move-btn").click();
   const canvasBox = await page.locator(".canvas canvas").boundingBox();
   const mx = canvasBox.x + canvasBox.width / 2;
   const my = canvasBox.y + canvasBox.height / 2;
@@ -109,7 +108,6 @@ for (const [name, viewport] of [
     Number(await posX()) !== 0,
     `${name}: dragging the image changes its position (x = ${await posX()})`,
   );
-  await page.locator("button.move-btn").click();
   const png = await page.evaluate(() => {
     const c = Object.assign(document.createElement("canvas"), { width: 120, height: 80 });
     const g = c.getContext("2d");
