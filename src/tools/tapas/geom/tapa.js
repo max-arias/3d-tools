@@ -1,8 +1,8 @@
 import { MODULES } from "../model/modules.js";
 import { usedSlots } from "../model/project.js";
 import { layoutModules, windowShape } from "./overlay.js";
-import { buildPattern } from "./patterns.js";
-import { applyRelief, packResult } from "./relief.js";
+import { decorate } from "./decorate.js";
+import { packResult } from "./relief.js";
 
 /**
  * Replacement plate: a flat face the size of the tapa with a skirt that wraps the bastidor and two
@@ -70,28 +70,23 @@ export function generateTapa(kit, p) {
       ),
     );
 
-  let patternBody = null;
+  let patternBodies = [];
   if (pat.id !== "none") {
     const keepOut = placed.map((m) =>
       kit.move(windowShape(kit, MODULES[m.type].win, t.winMargin + pat.margin), m.x, m.y),
     );
     let area = kit.own(outline.offset(-pat.margin, "Round", 2, 32));
     if (keepOut.length) area = kit.csSub(area, keepOut);
-    const cs = buildPattern(kit, pat, area, outline);
-    if (cs)
-      ({ body, patternBody } = applyRelief(kit, body, cs, {
-        mode: pat.mode,
-        depth: pat.depth,
-        face: t.face,
-        lift,
-      }));
+    const r = decorate(kit, p, body, { area, outline, face: t.face, lift });
+    ({ body, patternBodies } = r);
+    if (r.warning) warnings.push(r.warning);
   }
   return {
     kind: "tapa",
     ...packResult(kit, {
       name: "tapa",
       body,
-      patternBody,
+      patternBodies,
       bounds: outline.bounds(),
       total,
       pocket: [bw, bh, t.skirt],

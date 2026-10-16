@@ -1,10 +1,11 @@
 import { h } from "../../../shell/h.js";
-import { numField, row, segmented, slider, stepper } from "../../../shell/widgets.js";
+import { checkbox, numField, row, segmented, slider, stepper } from "../../../shell/widgets.js";
 import { langStore, t } from "../lib/i18n.js";
 import { MODULES } from "../model/modules.js";
 import { PRESETS, presetById } from "../model/presets.js";
 import { ICON_IDS } from "../geom/icons.js";
 import { layoutModules } from "../geom/overlay.js";
+import { ArtError, drawThumb, hasRasterSource, importFile, retrace } from "./art.js";
 import { baysDiagram, plateDiagram } from "./diagrams.js";
 import { PATTERN_MODES, PRODUCTS } from "../model/project.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
@@ -381,10 +382,241 @@ export function createSidebar() {
     );
   };
 
+  // ---- uploaded image ------------------------------------------------------------------------
+  let artMsg = "";
+  let artBusy = false;
+  const RASTER_DEFAULTS = { n: 2, thr: 128, inv: false, bg: true };
+
+  async function pickFile(file) {
+    if (!file || artBusy) return;
+    artBusy = true;
+    artMsg = "";
+    paint();
+    try {
+      const art = await importFile(file, RASTER_DEFAULTS);
+      update((q) => {
+        q.art = art;
+        q.pattern.id = "image";
+        // Start at the largest size that fits across the plate, keeping the picture's proportions.
+        const along = Math.max(art.w, art.h);
+        const fit =
+          Math.min(q.plate.w / (art.w / along), q.plate.h / (art.h / along)) - 2 * q.pattern.margin;
+        q.pattern.size = Math.max(5, Math.min(250, Math.round(fit * 0.9)));
+        q.pattern.ax = 0;
+        q.pattern.ay = 0;
+      });
+    } catch (e) {
+      artMsg = e instanceof ArtError ? e.message : "artErrType";
+    }
+    artBusy = false;
+    paint();
+  }
+
+  function retraceWith(patch) {
+    const art = project.get().art;
+    const next = retrace({ ...RASTER_DEFAULTS, ...art.src, ...patch });
+    if (!next) {
+      artMsg = "artErrEmpty";
+      paint();
+      return;
+    }
+    artMsg = "";
+    update((q) => (q.art = next));
+    paint();
+  }
+
+  const imagePanel = () => {
+    const p = project.get();
+    const art = p.art;
+    const drop = h(
+      "label",
+      { class: "drop" },
+      h("input", {
+        type: "file",
+        accept: ".svg,image/*",
+        onchange: (e) => pickFile(e.target.files[0]),
+      }),
+      h("span", {}, artBusy ? t("artBusy") : art ? t("artReplace") : t("artDrop")),
+    );
+    drop.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      drop.classList.add("hot");
+    });
+    drop.addEventListener("dragleave", () => drop.classList.remove("hot"));
+    drop.addEventListener("drop", (e) => {
+      e.preventDefault();
+      drop.classList.remove("hot");
+      pickFile(e.dataTransfer.files[0]);
+    });
+    const parts = [
+      drop,
+      artMsg && h("p", { class: "bad" }, t(artMsg)),
+      h("p", { class: "hint muted" }, t("artHint")),
+    ];
+    if (!art) return parts;
+
+    const thumb = h("canvas", { class: "art-thumb", "aria-label": t("artPreview") });
+    drawThumb(thumb, art);
+    const points = art.layers.reduce(
+      (n, l) => n + l.s.reduce((m, sh) => m + sh.p.reduce((k, r) => k + r.length / 2, 0), 0),
+      0,
+    );
+    parts.push(
+      h(
+        "div",
+        { class: "art-head" },
+        thumb,
+        h("small", { class: "muted" }, t("artStats", { n: art.layers.length, p: points })),
+      ),
+    );
+
+    if (art.kind === "raster") {
+      const src = { ...RASTER_DEFAULTS, ...art.src };
+      if (hasRasterSource()) {
+        parts.push(
+          row(
+            t("artColors"),
+            stepper({ value: src.n, min: 1, max: 4, onChange: (n) => retraceWith({ n }) }),
+          ),
+          src.n === 1
+            ? [
+                row(
+                  t("artThreshold"),
+                  slider({
+                    value: src.thr,
+                    min: 10,
+                    max: 245,
+                    step: 5,
+                    onChange: (v) => retraceWith({ thr: v }),
+                  }),
+                ),
+                checkbox({
+                  checked: src.inv,
+                  label: t("artInvert"),
+                  onChange: (v) => retraceWith({ inv: v }),
+                }),
+              ]
+            : checkbox({
+                checked: src.bg,
+                label: t("artBg"),
+                onChange: (v) => retraceWith({ bg: v }),
+              }),
+        );
+      } else parts.push(h("p", { class: "hint muted" }, t("artRetrace")));
+    }
+
+    parts.push(
+      h("b", { class: "sub" }, t("artLayers")),
+      art.layers.map((L, i) =>
+        h(
+          "div",
+          { class: "layer" },
+          checkbox({
+            checked: L.on,
+            label: t("artColour", { n: i + 1 }),
+            onChange: (v) => {
+              update((q) => (q.art.layers[i].on = v));
+              paint();
+            },
+          }),
+          h("input", {
+            type: "color",
+            value: L.c,
+            "aria-label": t("artColour", { n: i + 1 }),
+            oninput: (e) => update((q) => (q.art.layers[i].c = e.target.value)),
+            onchange: () => paint(),
+          }),
+        ),
+      ),
+      row(
+        t("artSize"),
+        numField({
+          value: p.pattern.size,
+          min: 5,
+          max: 250,
+          step: 1,
+          unit: "mm",
+          onChange: (v) => update((q) => (q.pattern.size = v)),
+        }),
+      ),
+      row(
+        t("artX"),
+        numField({
+          value: p.pattern.ax,
+          min: -150,
+          max: 150,
+          step: 1,
+          unit: "mm",
+          onChange: (v) => update((q) => (q.pattern.ax = v)),
+        }),
+      ),
+      row(
+        t("artY"),
+        numField({
+          value: p.pattern.ay,
+          min: -150,
+          max: 150,
+          step: 1,
+          unit: "mm",
+          onChange: (v) => update((q) => (q.pattern.ay = v)),
+        }),
+      ),
+      row(
+        t("pRot"),
+        slider({
+          value: p.pattern.rot,
+          min: 0,
+          max: 359,
+          step: 5,
+          onChange: (v) => update((q) => (q.pattern.rot = v)),
+        }),
+      ),
+      checkbox({
+        checked: p.pattern.mirror,
+        label: t("artMirror"),
+        onChange: (v) => update((q) => (q.pattern.mirror = v)),
+      }),
+      h(
+        "div",
+        { class: "actions" },
+        h(
+          "button",
+          {
+            onclick: () => {
+              update((q) => {
+                const along = Math.max(art.w, art.h);
+                q.pattern.size = Math.round(
+                  Math.min(q.plate.w / (art.w / along), q.plate.h / (art.h / along)) -
+                    2 * q.pattern.margin,
+                );
+                q.pattern.ax = 0;
+                q.pattern.ay = 0;
+              });
+              paint();
+            },
+          },
+          t("artFit"),
+        ),
+        h(
+          "button",
+          {
+            onclick: () => {
+              update((q) => (q.art = null));
+              paint();
+            },
+          },
+          t("artRemove"),
+        ),
+      ),
+    );
+    return parts;
+  };
+
   const designSection = () => {
     const p = project.get();
     const pat = p.pattern;
     const on = pat.id !== "none";
+    const isImage = pat.id === "image";
     const field = (label, key, min, max, step) =>
       row(
         label,
@@ -403,7 +635,7 @@ export function createSidebar() {
       h(
         "div",
         { class: "chips" },
-        ["none", ...PATTERN_IDS].map((id) =>
+        ["none", ...PATTERN_IDS, "image"].map((id) =>
           h(
             "button",
             {
@@ -418,6 +650,7 @@ export function createSidebar() {
           ),
         ),
       ),
+      isImage && imagePanel(),
       on && [
         h(
           "div",
@@ -438,9 +671,9 @@ export function createSidebar() {
             ),
           ),
         ),
-        pat.id !== "guarda" && field(t("pScale"), "scale", 4, 40, 1),
-        field(t("pWeight"), "weight", 0.15, 0.85, 0.05),
-        pat.id !== "guarda" && field(t("pRot"), "rot", 0, 180, 15),
+        !isImage && pat.id !== "guarda" && field(t("pScale"), "scale", 4, 40, 1),
+        !isImage && field(t("pWeight"), "weight", 0.15, 0.85, 0.05),
+        !isImage && pat.id !== "guarda" && field(t("pRot"), "rot", 0, 180, 15),
         field(t("pMargin"), "margin", 1, 8, 0.5),
         pat.mode !== "cutthrough" && field(t("pDepth"), "depth", 0.4, 1.6, 0.2),
       ],
@@ -623,7 +856,8 @@ export function createSidebar() {
         : p.pattern.id !== "none"
           ? p.pattern.mode
           : "none";
-    const two = ["inlay", "raised"].includes(motif);
+    const two =
+      ["inlay", "raised"].includes(motif) && !(p.product !== "keycap" && p.pattern.id === "image");
     const swatches = (key) =>
       h(
         "div",

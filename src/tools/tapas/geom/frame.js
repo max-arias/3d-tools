@@ -1,5 +1,5 @@
-import { buildPattern } from "./patterns.js";
-import { applyRelief, packResult } from "./relief.js";
+import { decorate } from "./decorate.js";
+import { packResult } from "./relief.js";
 import { fitOutline } from "./shapes.js";
 
 /** Ring that surrounds the existing tapa and stands on the wall. Face (top of the ring) at z = 0 when printed. */
@@ -24,7 +24,8 @@ export function generateFrame(kit, p) {
   const pocket = kit.rrect(pocketW, pocketH, pocketR);
   let body = kit.sub(kit.ext(outline, lift, total), kit.ext(pocket, lift - 1, total + 1));
 
-  let patternBody = null;
+  const warnings = [];
+  let patternBodies = [];
   if (pat.id !== "none") {
     const hole = kit.rrect(
       pocketW + 2 * pat.margin,
@@ -32,21 +33,17 @@ export function generateFrame(kit, p) {
       pocketR + pat.margin,
     );
     const area = kit.csSub(kit.own(outline.offset(-pat.margin, "Round", 2, 32)), hole);
-    const cs = buildPattern(kit, pat, area, outline);
-    if (cs)
-      ({ body, patternBody } = applyRelief(kit, body, cs, {
-        mode: pat.mode,
-        depth: pat.depth,
-        face: f.h,
-        lift,
-      }));
+    const r = decorate(kit, p, body, { area, outline, face: f.h, lift });
+    ({ body, patternBodies } = r);
+    if (r.warning) warnings.push(r.warning);
   }
   return {
     kind: "frame",
     ...packResult(kit, {
       name: "marco",
       body,
-      patternBody,
+      patternBodies,
+      warnings,
       bounds: outline.bounds(),
       total,
       pocket: [pocketW, pocketH, f.h],

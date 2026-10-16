@@ -268,6 +268,16 @@ export function createStage() {
     }
   };
 
+  const colourMats = new Map();
+  const matFor = (c) => {
+    if (!colourMats.has(c))
+      colourMats.set(
+        c,
+        new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, flatShading: true }),
+      );
+    return colourMats.get(c);
+  };
+
   function showCover(part) {
     dispose(cover);
     for (const body of part.bodies) {
@@ -277,7 +287,10 @@ export function createStage() {
       geo.computeVertexNormals();
       // Plate centre to the origin, rim on the wall plane (z = 0) after the turn below.
       geo.translate(-part.center[0], -part.center[1], -part.size[2]);
-      const mesh = new THREE.Mesh(geo, body.role === "pattern" ? patMat : mainMat);
+      const mesh = new THREE.Mesh(
+        geo,
+        body.role === "pattern" ? (body.color ? matFor(body.color) : patMat) : mainMat,
+      );
       // Printed face down; turn it over so the face looks at the camera with y still up.
       mesh.rotation.y = Math.PI;
       mesh.castShadow = mesh.receiveShadow = true;

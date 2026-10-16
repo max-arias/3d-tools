@@ -47,8 +47,21 @@ export function defaultProject() {
       iconSize: 12,
       iconDepth: 0.6,
     },
-    pattern: { id: "none", mode: "inlay", scale: 10, weight: 0.5, rot: 0, margin: 2.5, depth: 0.8 },
+    pattern: {
+      id: "none",
+      mode: "inlay",
+      scale: 10,
+      weight: 0.5,
+      rot: 0,
+      margin: 2.5,
+      depth: 0.8,
+      size: 40,
+      ax: 0,
+      ay: 0,
+      mirror: false,
+    },
     color: "#e9e4d8",
+    art: null,
     color2: "#c9442f",
     wall: "#ece7dc",
   };
@@ -136,17 +149,63 @@ export function sanitize(raw) {
       iconDepth: num(kc.iconDepth, 0.4, 1.6, d.keycap.iconDepth),
     },
     pattern: {
-      id: oneOf(r.pattern?.id, ["none", ...PATTERN_IDS], "none"),
+      id: oneOf(r.pattern?.id, ["none", ...PATTERN_IDS, "image"], "none"),
       mode: oneOf(r.pattern?.mode, PATTERN_MODES, "inlay"),
       scale: num(r.pattern?.scale, 4, 40, d.pattern.scale),
       weight: num(r.pattern?.weight, 0.15, 0.85, d.pattern.weight),
-      rot: num(r.pattern?.rot, 0, 180, 0),
+      rot: num(r.pattern?.rot, 0, 359, 0),
       margin: num(r.pattern?.margin, 1, 8, d.pattern.margin),
       depth: num(r.pattern?.depth, 0.4, 1.6, d.pattern.depth),
+      size: num(r.pattern?.size, 5, 250, d.pattern.size),
+      ax: num(r.pattern?.ax, -150, 150, 0),
+      ay: num(r.pattern?.ay, -150, 150, 0),
+      mirror: r.pattern?.mirror === true,
     },
+    art: sanitizeArt(r.art),
     color: hex(r.color, d.color),
     color2: hex(r.color2, d.color2),
     wall: hex(r.wall, d.wall),
+  };
+}
+
+const ART_LIMITS = { layers: 6, shapes: 400, rings: 400, points: 20000 };
+
+/** Image art as stored by lib/trace.js packArt. Anything malformed is dropped, never thrown on. */
+export function sanitizeArt(raw) {
+  if (!raw || typeof raw !== "object" || !Array.isArray(raw.layers)) return null;
+  let budget = ART_LIMITS.points;
+  const layers = [];
+  for (const L of raw.layers.slice(0, ART_LIMITS.layers)) {
+    const shapes = [];
+    for (const s of (Array.isArray(L?.s) ? L.s : []).slice(0, ART_LIMITS.shapes)) {
+      const rings = [];
+      for (const flat of (Array.isArray(s?.p) ? s.p : []).slice(0, ART_LIMITS.rings)) {
+        if (!Array.isArray(flat) || flat.length < 6 || flat.length % 2 || flat.length / 2 > budget)
+          continue;
+        if (!flat.every((v) => Number.isFinite(v))) continue;
+        budget -= flat.length / 2;
+        rings.push(flat.map((v) => Math.min(4095, Math.max(0, Math.round(v)))));
+      }
+      if (rings.length) shapes.push({ r: s.r === "n" ? "n" : "e", p: rings });
+    }
+    if (shapes.length) layers.push({ c: hex(L.c, "#222222"), on: L.on !== false, s: shapes });
+  }
+  if (!layers.length) return null;
+  const src = raw.src && typeof raw.src === "object" ? raw.src : null;
+  return {
+    v: 1,
+    kind: raw.kind === "svg" ? "svg" : "raster",
+    w: Math.round(num(raw.w, 1, 4095, 4095)),
+    h: Math.round(num(raw.h, 1, 4095, 4095)),
+    layers,
+    src: src
+      ? {
+          n: Math.round(num(src.n, 1, 4, 1)),
+          thr: num(src.thr, 0, 255, 128),
+          inv: src.inv === true,
+          bg: src.bg !== false,
+        }
+      : null,
   };
 }
 

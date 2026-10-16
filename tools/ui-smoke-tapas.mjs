@@ -1,9 +1,12 @@
 // Drives /tapas/ in headless Chromium at desktop and phone width. Needs `vp dev --port 5200` running.
 import { chromium } from "playwright";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 const url = process.env.URL ?? "http://localhost:5200/tapas/";
 const out = process.env.OUT ?? "/tmp";
 const errors = [];
+const tmp = mkdtempSync(`${tmpdir()}/tapas-smoke-`);
 let failed = 0;
 const check = (ok, msg) => {
   console.log(`${ok ? "ok  " : "FAIL"} ${msg}`);
@@ -77,6 +80,42 @@ for (const [name, viewport] of [
     await page.waitForTimeout(500);
     await page.screenshot({ path: `${out}/tapas-${name}-${card.split(" ")[0]}.png` });
   }
+  // Uploading art: a two-colour SVG and a generated PNG become colour layers on the face.
+  await page.click('.cards .card:has-text("Cubretapa")');
+  await page.click('.chip:has-text("Mi imagen")');
+  writeFileSync(
+    `${tmp}/smoke-art.svg`,
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><rect width="100" height="60" fill="#fff"/><circle cx="25" cy="30" r="20" fill="#d62828"/><path d="M55 50 L75 10 L95 50 Z" fill="#1d4e89"/></svg>',
+  );
+  await page.locator('.drop input[type="file"]').setInputFiles(`${tmp}/smoke-art.svg`);
+  await page.waitForSelector(".art-thumb", { timeout: 20000 });
+  check(
+    (await page.locator(".layer").count()) === 2,
+    `${name}: SVG upload gives two colour layers (background dropped)`,
+  );
+  const png = await page.evaluate(() => {
+    const c = Object.assign(document.createElement("canvas"), { width: 120, height: 80 });
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, 120, 80);
+    g.fillStyle = "#e63946";
+    g.fillRect(10, 10, 40, 60);
+    g.fillStyle = "#1d3557";
+    g.fillRect(70, 10, 40, 60);
+    return c.toDataURL("image/png").split(",")[1];
+  });
+  writeFileSync(`${tmp}/smoke-art.png`, Buffer.from(png, "base64"));
+  await page.locator('.drop input[type="file"]').setInputFiles(`${tmp}/smoke-art.png`);
+  await page.waitForFunction(() => document.querySelectorAll(".layer").length === 2, null, {
+    timeout: 20000,
+  });
+  check(true, `${name}: PNG upload traces two colour layers`);
+  await page
+    .locator('.drop input[type="file"]')
+    .setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") });
+  await page.waitForSelector("text=Subí un SVG", { timeout: 10000 });
+  check(true, `${name}: a text file is refused with a message`);
+  await page.click('.chip:has-text("Liso")');
   await page.click('.cards .card:has-text("Cubretapa")');
   await page.click('button:has-text("Duplicar")');
   check((await page.locator(".hrow").count()) === 2, `${name}: duplicate adds a cover`);

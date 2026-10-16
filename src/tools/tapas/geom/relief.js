@@ -14,6 +14,30 @@ export function applyRelief(kit, body, cs, { mode, depth, face, lift }) {
   return { body: kit.sub(body, kit.ext(cs, -1, lift + face)), patternBody: null };
 }
 
+/**
+ * Like applyRelief for several colours: layers = [{ cs, color }]. Inlay and raised give one body per
+ * colour; engraving and cut-through remove all of them from the face together.
+ */
+export function applyReliefLayers(kit, body, layers, { mode, depth, face, lift }) {
+  if (!layers.length) return { body, patternBodies: [] };
+  const d = Math.min(depth, face);
+  if (mode === "engraved" || mode === "cutthrough") {
+    const all = kit.csUnion(layers.map((l) => l.cs));
+    return {
+      body: kit.sub(body, kit.ext(all, -1, mode === "engraved" ? d : lift + face)),
+      patternBodies: [],
+    };
+  }
+  const patternBodies = [];
+  for (const l of layers) {
+    if (mode === "inlay") {
+      body = kit.sub(body, kit.ext(l.cs, -1, d));
+      patternBodies.push({ solid: kit.ext(l.cs, 0, d), color: l.color });
+    } else patternBodies.push({ solid: kit.ext(l.cs, 0, lift), color: l.color });
+  }
+  return { body, patternBodies };
+}
+
 const concat = (meshes) => {
   const positions = new Float32Array(meshes.reduce((a, m) => a + m.positions.length, 0));
   const indices = new Uint32Array(meshes.reduce((a, m) => a + m.indices.length, 0));
@@ -35,18 +59,26 @@ const concat = (meshes) => {
  */
 export function packResult(
   kit,
-  { name, body, patternBody, bounds, total, pocket = null, warnings = [] },
+  { name, body, patternBody, patternBodies, bounds, total, pocket = null, warnings = [] },
 ) {
   const origin = [bounds.min[0], bounds.min[1], 0];
   const main = kit.export(body, origin);
   const bodies = [{ name, role: "main", mesh: main.mesh, volume: main.volume }];
   const w = new Set(warnings);
   if (!main.valid) w.add("invalidMesh");
-  if (patternBody) {
-    const pb = kit.export(patternBody, origin);
-    if (!pb.valid) w.add("invalidMesh");
-    bodies.push({ name: "patron", role: "pattern", mesh: pb.mesh, volume: pb.volume });
-  }
+  // One body per colour; a lone pattern keeps the plain name "patron".
+  const extra = patternBodies ?? (patternBody ? [{ solid: patternBody }] : []);
+  extra.forEach((pb, i) => {
+    const out = kit.export(pb.solid, origin);
+    if (!out.valid) return; // an empty colour (everything clipped away) is not an error
+    bodies.push({
+      name: extra.length > 1 ? `patron_${i + 1}` : "patron",
+      role: "pattern",
+      color: pb.color,
+      mesh: out.mesh,
+      volume: out.volume,
+    });
+  });
   return {
     name,
     flip: true,

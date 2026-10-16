@@ -1,7 +1,7 @@
 import { MODULES } from "../model/modules.js";
 import { usedSlots } from "../model/project.js";
-import { buildPattern } from "./patterns.js";
-import { applyRelief, packResult } from "./relief.js";
+import { decorate } from "./decorate.js";
+import { packResult } from "./relief.js";
 import { fitOutline } from "./shapes.js";
 
 /** Window centres [{ x, y, type }] in plate coordinates (x across, y along the module row). */
@@ -71,7 +71,7 @@ export function generateOverlay(kit, p) {
   });
   if (cuts.length) body = kit.sub(body, cuts);
 
-  let patternBody = null;
+  let patternBodies = [];
   if (pat.id !== "none") {
     const keepOut = placed.map((m) =>
       kit.move(windowShape(kit, MODULES[m.type].win, mods.margin + pat.margin), m.x, m.y),
@@ -80,14 +80,9 @@ export function generateOverlay(kit, p) {
     if (pat.mode === "cutthrough")
       area = kit.inter2d(area, kit.rrect(pocketW - 0.8, pocketH - 0.8, Math.max(0, pocketR - 0.4)));
     if (keepOut.length) area = kit.csSub(area, keepOut);
-    const cs = buildPattern(kit, pat, area, outline);
-    if (cs)
-      ({ body, patternBody } = applyRelief(kit, body, cs, {
-        mode: pat.mode,
-        depth: pat.depth,
-        face: o.face,
-        lift,
-      }));
+    const r = decorate(kit, p, body, { area, outline, face: o.face, lift });
+    ({ body, patternBodies } = r);
+    if (r.warning) warnings.push(r.warning);
   }
 
   return {
@@ -95,7 +90,7 @@ export function generateOverlay(kit, p) {
     ...packResult(kit, {
       name: "cubretapa",
       body,
-      patternBody,
+      patternBodies,
       bounds: outline.bounds(),
       total,
       pocket: [pocketW, pocketH, depth],

@@ -527,3 +527,46 @@ select {
   stroke-width: 1.4;
   stroke-dasharray: 4 3;
 }
+
+.drop {
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  padding: 10px;
+  border: 1.5px dashed var(--accent-2);
+  border-radius: var(--radius);
+  color: var(--accent-text);
+  text-align: center;
+  cursor: pointer;
+}
+.drop.hot {
+  background: var(--accent-2-soft);
+}
+.drop input {
+  display: none;
+}
+.art-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.art-thumb {
+  max-width: 150px;
+  max-height: 150px;
+  background: repeating-conic-gradient(var(--panel-2) 0% 25%, var(--panel) 0% 50%) 0 0 / 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.layer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.layer input[type="color"] {
+  width: 44px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: transparent;
+}
