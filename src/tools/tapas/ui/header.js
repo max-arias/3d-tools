@@ -1,15 +1,21 @@
 import { h } from "../../../shell/h.js";
 import { toggleTheme } from "../../../shell/theme.js";
 import { langStore, setLang, t } from "../lib/i18n.js";
+import { encodeHouse } from "../model/house.js";
 import { encodeShare } from "../model/project.js";
-import { project } from "./state.js";
+import { house, project } from "./state.js";
 
 export function createHeader(toast) {
   const root = h("header", { class: "bar" });
   const render = () => {
     const { lang } = langStore.get();
     const share = async () => {
-      const url = `${location.origin}${location.pathname}#p=${encodeShare(project.get())}`;
+      const { items } = house.get();
+      const hash =
+        items.length > 1
+          ? `h=${encodeHouse({ ...house.get(), items: items.map((i) => (i.id === house.get().active ? { ...i, project: project.get() } : i)) })}`
+          : `p=${encodeShare(project.get())}`;
+      const url = `${location.origin}${location.pathname}#${hash}`;
       try {
         await navigator.clipboard.writeText(url);
         toast(t("shared"));

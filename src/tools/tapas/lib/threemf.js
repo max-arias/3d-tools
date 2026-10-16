@@ -22,25 +22,35 @@ function meshXml(id, name, mesh) {
   return `<object id="${id}" name="${esc(name)}" type="model"><mesh><vertices>${v.join("")}</vertices><triangles>${t.join("")}</triangles></mesh></object>`;
 }
 
-/** Shelf-pack footprints [{w, h}] into a bed; returns [{x, y}] and whether everything fits. */
-export function shelfPack(sizes, bed, gap = 4) {
+/**
+ * Shelf-pack footprints [{ w, h }] onto as many plates as needed.
+ * Returns positions [{ x, y, plate }], the plate count, and whether every part fits a plate alone.
+ */
+export function packPlates(sizes, bed, gap = 4) {
+  let plate = 0;
   let x = gap;
   let y = gap;
   let rowH = 0;
   let fits = true;
-  const out = sizes.map(({ w, h }) => {
-    if (x + w + gap > bed.x && x > gap) {
+  const positions = sizes.map(({ w, h }) => {
+    if (w + 2 * gap > bed.x || h + 2 * gap > bed.y) fits = false;
+    if (x > gap && x + w + gap > bed.x) {
       x = gap;
       y += rowH + gap;
       rowH = 0;
     }
-    const at = { x, y };
+    if (y > gap && y + h + gap > bed.y) {
+      plate++;
+      x = gap;
+      y = gap;
+      rowH = 0;
+    }
+    const at = { x, y, plate };
     x += w + gap;
     rowH = Math.max(rowH, h);
-    if (y + h + gap > bed.y || w + 2 * gap > bed.x) fits = false;
     return at;
   });
-  return { positions: out, fits };
+  return { positions, plates: plate + 1, fits };
 }
 
 /**
@@ -48,10 +58,12 @@ export function shelfPack(sizes, bed, gap = 4) {
  * become extruders 1, 2, ... in order. Returns Uint8Array.
  */
 export function build3mf({ items, bed, title = "Tapas" }) {
-  const { positions } = shelfPack(
+  const { positions, plates: plateCount } = packPlates(
     items.map((i) => ({ w: i.size[0], h: i.size[1] })),
     bed,
   );
+  const cols = Math.ceil(Math.sqrt(plateCount));
+  const plates = Array.from({ length: plateCount }, () => []);
   let nextId = 1;
   const objects = [];
   const build = [];
@@ -71,9 +83,12 @@ export function build3mf({ items, bed, title = "Tapas" }) {
       );
     }
     const at = positions[n];
+    const ox = (at.plate % cols) * bed.x * 1.2 + at.x;
+    const oy = -Math.floor(at.plate / cols) * bed.y * 1.2 + at.y;
     build.push(
-      `<item objectid="${buildId}" transform="1 0 0 0 1 0 0 0 1 ${num(at.x)} ${num(at.y)} 0" printable="1"/>`,
+      `<item objectid="${buildId}" transform="1 0 0 0 1 0 0 0 1 ${num(ox)} ${num(oy)} 0" printable="1"/>`,
     );
+    plates[at.plate].push(buildId);
     const parts =
       ids.length > 1
         ? ids
@@ -87,6 +102,20 @@ export function build3mf({ items, bed, title = "Tapas" }) {
       `<object id="${buildId}"><metadata key="name" value="${esc(item.name)}"/><metadata key="extruder" value="1"/>${parts}</object>`,
     );
   });
+
+  const plateXml = plates
+    .map(
+      (ids, i) =>
+        `<plate><metadata key="plater_id" value="${i + 1}"/><metadata key="plater_name" value="Plate ${i + 1}"/><metadata key="locked" value="false"/>` +
+        ids
+          .map(
+            (id) =>
+              `<model_instance><metadata key="object_id" value="${id}"/><metadata key="instance_id" value="0"/></model_instance>`,
+          )
+          .join("") +
+        `</plate>`,
+    )
+    .join("");
 
   const model =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
@@ -108,7 +137,7 @@ export function build3mf({ items, bed, title = "Tapas" }) {
       ),
       "3D/3dmodel.model": strToU8(model),
       "Metadata/model_settings.config": strToU8(
-        `<?xml version="1.0" encoding="UTF-8"?>\n<config>${settings.join("")}</config>`,
+        `<?xml version="1.0" encoding="UTF-8"?>\n<config>${settings.join("")}${plateXml}</config>`,
       ),
     },
     { level: 6 },

@@ -321,3 +321,18 @@ button[aria-pressed="true"] {
   text-align: right;
   font-family: var(--mono);
 }
+.hrow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+}
+.hrow[aria-current="true"] input {
+  border-color: var(--accent);
+}
+.hsel {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}

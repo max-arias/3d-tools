@@ -60,6 +60,21 @@ export const UNITS = {
     },
     { n: 200 },
   ),
+  clover: curve(
+    (t) => {
+      const r = 0.72 + 0.28 * Math.cos(4 * t);
+      return [r * Math.cos(t), r * Math.sin(t)];
+    },
+    { n: 240 },
+  ),
+  octagon: curve(
+    (t) => {
+      const a = Math.round(t / (TAU / 8)) * (TAU / 8);
+      const r = Math.cos(Math.PI / 8) / Math.cos(t - a);
+      return [r * Math.cos(t), r * Math.sin(t)];
+    },
+    { n: 480 },
+  ),
   hexagon: curve(
     (t) => {
       const a = Math.round(t / (TAU / 6)) * (TAU / 6);
@@ -90,6 +105,33 @@ function scallop(kit, w, h) {
   return kit.csUnion(base, bumps);
 }
 
+const diamond = (kit, w, h) =>
+  kit.poly([
+    [0, -h / 2],
+    [w / 2, 0],
+    [0, h / 2],
+    [-w / 2, 0],
+  ]);
+
+/** Heater-shield outline: flat top, straight sides, curved sides meeting in a point. */
+function shield(kit, w, h) {
+  const pts = [
+    [-0.5, 0.5],
+    [-0.5, 0.05],
+  ];
+  for (let i = 1; i < 12; i++) {
+    const s = i / 12;
+    pts.push([-0.5 * (1 - s) ** 1.0, 0.05 - 0.55 * s ** 1.5]);
+  }
+  pts.push([0, -0.5]);
+  for (let i = 11; i >= 1; i--) {
+    const s = i / 12;
+    pts.push([0.5 * (1 - s), 0.05 - 0.55 * s ** 1.5]);
+  }
+  pts.push([0.5, 0.05], [0.5, 0.5]);
+  return kit.poly(scaled(pts.reverse(), w, h));
+}
+
 function arch(kit, w, h) {
   const r = w / 2;
   const top = kit.circle(r, 0, h / 2 - r, 64);
@@ -105,6 +147,10 @@ export const SHAPES = {
   squircle: { round: false, build: fromCurve(UNITS.squircle) },
   arch: { round: false, build: arch },
   scallop: { round: false, build: scallop },
+  diamond: { round: false, build: diamond },
+  shield: { round: false, build: shield },
+  octagon: { round: true, build: fromCurve(UNITS.octagon) },
+  clover: { round: true, build: fromCurve(UNITS.clover) },
   circle: { round: true, build: fromCurve(UNITS.circle) },
   hexagon: { round: true, build: fromCurve(UNITS.hexagon) },
   heart: { round: true, build: fromCurve(UNITS.heart) },

@@ -7,8 +7,18 @@ import { ICON_IDS } from "../geom/icons.js";
 import { PATTERN_MODES, PRODUCTS, usedSlots } from "../model/project.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
 import { SHAPE_IDS } from "../geom/shapes.js";
-import { download3mf, downloadCoupon, downloadStl, fits } from "./export.js";
-import { project, result, update, view } from "./state.js";
+import { download3mf, downloadCoupon, downloadHouse, downloadStl, platesFor } from "./export.js";
+import {
+  addItem,
+  house,
+  patchItem,
+  project,
+  removeItem,
+  result,
+  selectItem,
+  update,
+  view,
+} from "./state.js";
 
 const SWATCHES = [
   "#e9e4d8",
@@ -55,6 +65,114 @@ const section = (id, title, ...body) => {
 export function createSidebar() {
   const root = h("aside", { class: "side" });
   let presetSelect;
+
+  const houseSection = () => {
+    const { items, active } = house.get();
+    const total = items.reduce((n, i) => n + i.qty, 0);
+    let busy = false;
+    const all = h(
+      "button",
+      {
+        class: "primary",
+        onclick: async () => {
+          if (busy) return;
+          busy = true;
+          try {
+            await downloadHouse(
+              items,
+              project.get().printer,
+              (done, of) =>
+                (all.textContent =
+                  done < of ? t("houseBusy", { done: done + 1, of }) : t("houseAll")),
+            );
+          } finally {
+            busy = false;
+            all.textContent = t("houseAll");
+          }
+        },
+      },
+      t("houseAll"),
+    );
+    return section(
+      "house",
+      t("house"),
+      h("p", { class: "hint muted" }, t("houseHint")),
+      items.map((it) =>
+        h(
+          "div",
+          { class: "hrow", "aria-current": String(it.id === active) },
+          it.id === active
+            ? h("input", {
+                type: "text",
+                maxLength: 40,
+                value: it.name,
+                "aria-label": t("coverName"),
+                dataset: { key: "hname" },
+                oninput: (e) => patchItem(it.id, { name: e.target.value }),
+              })
+            : h(
+                "button",
+                {
+                  class: "hsel",
+                  onclick: () => {
+                    selectItem(it.id);
+                    paint();
+                  },
+                },
+                it.name,
+                h("small", { class: "muted" }, t(it.project.product)),
+              ),
+          stepper({
+            value: it.qty,
+            min: 1,
+            max: 99,
+            onChange: (n) => patchItem(it.id, { qty: n }),
+          }),
+          h(
+            "button",
+            {
+              class: "x",
+              title: t("remove"),
+              "aria-label": t("remove"),
+              disabled: items.length < 2,
+              onclick: () => {
+                removeItem(it.id);
+                paint();
+              },
+            },
+            "×",
+          ),
+        ),
+      ),
+      h(
+        "div",
+        { class: "actions" },
+        h(
+          "button",
+          {
+            onclick: () => {
+              addItem(true);
+              paint();
+            },
+          },
+          t("houseCopy"),
+        ),
+        h(
+          "button",
+          {
+            onclick: () => {
+              addItem(false);
+              paint();
+            },
+          },
+          t("houseNew"),
+        ),
+      ),
+      items.length > 1 || items[0].qty > 1
+        ? [all, h("small", { class: "muted" }, t("houseTotal", { n: total }))]
+        : null,
+    );
+  };
 
   const productSection = () => {
     const cur = project.get().product;
@@ -598,7 +716,8 @@ export function createSidebar() {
     const { part } = result.get();
     const copies = view.get().copies;
     const bed = p.printer;
-    const ok = part ? fits(part, copies, bed) : true;
+    const packed = part ? platesFor(part, copies, bed) : null;
+    const ok = !packed || packed.fits;
     const preset = PRINTERS.find(([, x, y]) => x === bed.x && y === bed.y);
     return section(
       "export",
@@ -631,7 +750,16 @@ export function createSidebar() {
           ),
         ),
       ),
-      part && h("p", { class: ok ? "ok" : "bad" }, ok ? t("bedFit") : t("bedNoFit")),
+      part &&
+        h(
+          "p",
+          { class: ok ? "ok" : "bad" },
+          !ok
+            ? t("bedNoFit")
+            : packed.plates > 1
+              ? t("bedPlates", { n: packed.plates })
+              : t("bedFit"),
+        ),
       h("p", { class: "hint muted" }, t("printHint")),
       h(
         "div",
@@ -666,6 +794,7 @@ export function createSidebar() {
       keycap: [keycapSection],
     };
     const body = [
+      houseSection(),
       productSection(),
       ...by[product].map((fn) => fn()),
       colorSection(),

@@ -78,6 +78,22 @@ for (const [name, viewport] of [
     await page.screenshot({ path: `${out}/tapas-${name}-${card.split(" ")[0]}.png` });
   }
   await page.click('.cards .card:has-text("Cubretapa")');
+  await page.click('button:has-text("Duplicar")');
+  check((await page.locator(".hrow").count()) === 2, `${name}: duplicate adds a cover`);
+  await page.click('.cards .card:has-text("Marco")');
+  await page.waitForTimeout(600);
+  await page.click(".hsel");
+  await page.waitForTimeout(600);
+  check(await page.isVisible("text=Medidas"), `${name}: selecting a cover restores it`);
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 60000 }),
+    page.click('button:has-text("Descargar todo")'),
+  ]);
+  check(
+    download.suggestedFilename() === "mi_casa.3mf",
+    `${name}: house 3MF downloads (${download.suggestedFilename()})`,
+  );
+  await page.screenshot({ path: `${out}/tapas-${name}-house.png` });
   await page.waitForTimeout(800);
   await page.click('button:has-text("EN")');
   check(await page.isVisible("text=Download STL"), `${name}: English toggle`);

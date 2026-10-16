@@ -2,7 +2,7 @@
 // origin that fits inside a `size` x `size` square.
 import { fitText, layoutText } from "../lib/text.js";
 
-export const ICON_IDS = ["bulb", "fan", "blind", "text"];
+export const ICON_IDS = ["bulb", "fan", "blind", "mate", "bandoneon", "text"];
 
 function bulb(kit, s) {
   const globe = kit.circle(s * 0.3, 0, s * 0.13, 40);
@@ -29,6 +29,30 @@ function blind(kit, s) {
   return kit.csUnion(kit.rect(-s * 0.44, s * 0.44, s * 0.4, s * 0.48), slats);
 }
 
+/** Mate gourd with its bombilla (straw). */
+export function mate(kit, s) {
+  const body = kit.csSub(kit.circle(s * 0.34, 0, -s * 0.1, 40), kit.rect(-s, s, s * 0.1, s));
+  const straw = kit.own(
+    kit
+      .own(kit.rect(-s * 0.025, s * 0.025, 0, s * 0.62).rotate(-28))
+      .translate([s * 0.06, s * 0.06]),
+  );
+  return kit.csUnion(body, straw);
+}
+
+/** Bandoneón: two end plates joined by pleated bellows. */
+function bandoneon(kit, s) {
+  const bars = [-0.26, -0.13, 0, 0.13, 0.26].map((x, i) =>
+    kit.rect(s * (x - 0.03), s * (x + 0.03), -s * (i % 2 ? 0.17 : 0.22), s * (i % 2 ? 0.17 : 0.22)),
+  );
+  return kit.csUnion(
+    kit.rect(-s * 0.46, -s * 0.34, -s * 0.28, s * 0.28),
+    kit.rect(s * 0.34, s * 0.46, -s * 0.28, s * 0.28),
+    kit.rect(-s * 0.4, s * 0.4, -s * 0.03, s * 0.03),
+    bars,
+  );
+}
+
 function text(kit, s, { font, label }) {
   if (!font || !label) return null;
   const layout = layoutText(font, label);
@@ -50,6 +74,8 @@ export function iconShape(kit, id, size, ctx) {
   if (id === "bulb") return bulb(kit, size);
   if (id === "fan") return fan(kit, size);
   if (id === "blind") return blind(kit, size);
+  if (id === "mate") return mate(kit, size);
+  if (id === "bandoneon") return bandoneon(kit, size);
   if (id === "text") return text(kit, size, ctx);
   return null;
 }

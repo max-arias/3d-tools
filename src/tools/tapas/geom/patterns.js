@@ -1,5 +1,6 @@
 // 2D motifs for the overlay face. Every motif is original. `build` returns CrossSections centred on
 // the origin covering [-R, R]; `buildPattern` rotates, clips to the free area and returns one shape.
+import { mate } from "./icons.js";
 import { UNITS } from "./shapes.js";
 
 const TAU = Math.PI * 2;
@@ -136,6 +137,50 @@ export const PATTERNS = {
         return kit.own(rect.translate([i * s * 0.7, j * s + (i % 2 ? s / 2 : 0)]));
       }),
     );
+  },
+  rombos: ({ kit, s, w, R }) => {
+    const t = s * w * 0.22;
+    const diamond = (r) =>
+      kit.poly([
+        [0, -r],
+        [r, 0],
+        [0, r],
+        [-r, 0],
+      ]);
+    const n = Math.ceil(R / s) + 1;
+    return range(n).flatMap((i) =>
+      range(n).map((j) =>
+        kit.own(
+          kit.csSub(diamond(s / 2), diamond(Math.max(0.2, s / 2 - t))).translate([i * s, j * s]),
+        ),
+      ),
+    );
+  },
+  escamas: ({ kit, s, w, R }) => {
+    const t = Math.max(0.5, s * w * 0.14);
+    const ring = kit.csSub(kit.circle(s / 2, 0, 0, 32), kit.circle(s / 2 - t, 0, 0, 32));
+    return lattice(s, R, 0.5).map(([x, y]) => kit.own(ring.translate([x, y])));
+  },
+  // Stepped fret (greca): a square wave in every row.
+  greca: ({ kit, s, w, R }) => {
+    const u = s * 0.3;
+    const t = Math.max(0.5, s * w * 0.16);
+    const pieces = [];
+    for (const j of range(Math.ceil(R / s))) {
+      const base = j * s;
+      for (let k = -Math.ceil(R / u); k <= Math.ceil(R / u); k++) {
+        const y = base + (k & 1 ? u : 0);
+        pieces.push(kit.rect(k * u - t / 2, (k + 1) * u + t / 2, y - t / 2, y + t / 2));
+        pieces.push(
+          kit.rect((k + 1) * u - t / 2, (k + 1) * u + t / 2, base - t / 2, base + u + t / 2),
+        );
+      }
+    }
+    return pieces;
+  },
+  mates: ({ kit, s, w, R }) => {
+    const icon = mate(kit, s * (0.6 + 0.4 * w));
+    return lattice(s * 1.3, R).map(([x, y]) => kit.own(icon.translate([x, y])));
   },
   // Sol de Mayo-style sun: a disc with alternating straight and narrow rays.
   sol: ({ kit, s, w, R }) => {
