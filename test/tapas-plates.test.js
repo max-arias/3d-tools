@@ -240,3 +240,21 @@ test("Cambre Siglo XXII presets match Cambre's technical drawings (distribuidore
   for (const id of ["cambre-xxii", "cambre-xxii-mignon", "cambre-xxii-8"])
     expect(make(project(id)).valid, id).toBe(true);
 });
+
+test("Cambre A.R.T.E. matches its technical drawing: 100.2 x 124.6, window 50.4 x 74.8, 6.5 mm profile", () => {
+  const arte = PRESETS.find((x) => x.id === "cambre-arte");
+  expect(arte.plate).toMatchObject({ w: 100.2, h: 124.6, d: 6.5 });
+  expect(arte.plate.r).toBeCloseTo(3.3, 1);
+  expect(arte.source).toBe("maker");
+  const p = sanitize({
+    ...defaultProject(),
+    preset: "cambre-arte",
+    plate: arte.plate,
+    mods: { ...defaultProject().mods, ...arte.mods, slots: 4 },
+    groups: presetLayout(arte),
+  });
+  const win = facePieces(p).windows[0].win;
+  expect(win.x).toBeCloseTo(50.4, 5);
+  expect(win.y).toBeCloseTo(74.8, 5);
+  expect(make(p).valid).toBe(true);
+});

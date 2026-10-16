@@ -5,6 +5,7 @@ import { MODULES, SOCKET_SLOTS } from "../model/modules.js";
 import { facePieces, layoutModules } from "../geom/layout.js";
 import { langStore, t } from "../lib/i18n.js";
 import { drawArt } from "./art.js";
+import { loadHallProps, place } from "./hallProps.js";
 import { artBox, dragPlacement, insideArt, placementKey, wheelSize } from "./drag.js";
 import { holdGeneration, project, result, update, view } from "./state.js";
 
@@ -229,10 +230,32 @@ export function createStage() {
   );
   handle.position.set(doorX + 330, floorY + 1000, 55);
   hall.add(handle);
-  // A picture and a rug for scale and depth.
+  // A rug for scale and depth; the furniture is real glTF models, added once they have loaded.
+  plane(3600, 620, std("#8d5b4a", 1), [-900, floorY + 2, HALL_W / 2], [-Math.PI / 2, 0, 0]);
+  const props = new THREE.Group();
+  hall.add(props);
+  loadHallProps()
+    .then((p) => {
+      // A console table under the switch wall, with a plant and a framed picture above it.
+      const consoleX = -1950;
+      const table = place(p.console, 1000, consoleX, floorY, 0);
+      const top = floorY + 949;
+      const back = new THREE.Box3().setFromObject(table).min.z;
+      table.position.z -= back; // back against the wall
+      props.add(table);
+      props.add(place(p.plant, 1000, consoleX + 500, top, 130));
+      const frame = place(p.frame, 1000, consoleX - 80, top + 380, 0);
+      frame.position.z += 17;
+      props.add(frame);
+      // A pendant lamp over the hall, hanging from the ceiling.
+      const pendant = place(p.lamp, 1000, 250, floorY + CEILING - 952, 650);
+      pendant.traverse((o) => o.isMesh && (o.castShadow = false)); // the room light sits inside it
+      props.add(pendant);
+      lampBulb.visible = false;
+    })
+    .catch(() => {}); // the plain boxes below stay if the models are missing
   box(520, 700, 20, std("#2f2a26", 0.6), -700, floorY + 1450, HALL_W - 12);
   box(440, 620, 4, std("#c9a86a", 0.9), -700, floorY + 1450, HALL_W - 24);
-  plane(3600, 620, std("#8d5b4a", 1), [-900, floorY + 2, HALL_W / 2], [-Math.PI / 2, 0, 0]);
   // Daylight at the end of the hall gives the depth.
   plane(
     900,
