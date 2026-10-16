@@ -1,7 +1,7 @@
 import { h } from "../../../shell/h.js";
 import { numField, row, segmented, slider, stepper } from "../../../shell/widgets.js";
 import { langStore, t } from "../lib/i18n.js";
-import { MODULE_IDS } from "../model/modules.js";
+import { MODULES, MODULE_IDS } from "../model/modules.js";
 import { PRESETS, presetById } from "../model/presets.js";
 import { ICON_IDS } from "../geom/icons.js";
 import { PATTERN_MODES, PRODUCTS, usedSlots } from "../model/project.js";
@@ -337,7 +337,13 @@ export function createSidebar() {
                     },
                   },
                   MODULE_IDS.map((id) =>
-                    h("option", { value: id, selected: id === m }, t(`m.${id}`)),
+                    h(
+                      "option",
+                      { value: id, selected: id === m },
+                      MODULES[id].span > 1
+                        ? `${t(`m.${id}`)} (${t("spanN", { n: MODULES[id].span })})`
+                        : t(`m.${id}`),
+                    ),
                   ),
                 ),
                 h(
@@ -359,6 +365,8 @@ export function createSidebar() {
               "button",
               {
                 class: "add",
+                disabled: used >= p.mods.slots,
+                title: used >= p.mods.slots ? t("frameFull") : undefined,
                 onclick: () => {
                   update((q) => q.groups[g].push("tecla"));
                   paint();
@@ -369,7 +377,13 @@ export function createSidebar() {
             ),
           ),
           used > p.mods.slots &&
-            h("p", { class: "bad" }, t("slotsOver", { used, slots: p.mods.slots })),
+            h(
+              "p",
+              { class: "bad" },
+              t("slotsOver", { used, slots: p.mods.slots }),
+              " ",
+              t("slotsOverHint"),
+            ),
         );
       }),
       row(

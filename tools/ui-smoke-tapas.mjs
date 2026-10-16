@@ -99,7 +99,6 @@ for (const [name, viewport] of [
   check(await page.isVisible("text=Download STL"), `${name}: English toggle`);
   await page.click('button:has-text("ES")');
 
-  await page.click('button:has-text("+ Agregar módulo")').catch(() => {});
   check(await page.isVisible("text=Descargar 3MF"), `${name}: export buttons`);
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/tapas-${name}.png` });

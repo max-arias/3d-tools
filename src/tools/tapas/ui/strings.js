@@ -173,6 +173,9 @@ addStrings("es", {
   shotNear: "Cerca",
   shotMid: "Medio",
   shotHall: "Pasillo",
+  spanN: "ocupa {n}",
+  frameFull: "El bastidor está completo",
+  slotsOverHint: "Cada módulo ocupa un lugar; una toma ocupa 2.",
 });
 
 addStrings("en", {
@@ -346,4 +349,7 @@ addStrings("en", {
   shotNear: "Close",
   shotMid: "Medium",
   shotHall: "Hallway",
+  spanN: "takes {n}",
+  frameFull: "The frame is full",
+  slotsOverHint: "Each module takes one slot; a socket takes 2.",
 });
