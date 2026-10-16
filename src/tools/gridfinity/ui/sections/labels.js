@@ -15,9 +15,11 @@ import { scopedSegmented } from "./bins.js";
 
 export const id = "labels";
 export const scoped = true;
-export const title = "LABELS";
-export const summary = (project) =>
-  String(project.bins.reduce((n, b) => n + (b.labels ?? []).filter(Boolean).length, 0));
+export const title = "Labels";
+export const summary = (project) => {
+  const n = project.bins.reduce((sum, b) => sum + (b.labels ?? []).filter(Boolean).length, 0);
+  return n === 1 ? "1 label" : `${n} labels`;
+};
 
 const CAP_RATIO = 1490 / 2048;
 const WALL_NAMES = {
@@ -27,8 +29,9 @@ const WALL_NAMES = {
   right: "the right wall",
 };
 const n1 = (v) => +v.toFixed(1);
+const sub = (text) => h("h3", { class: "s-sub" }, text);
 
-// Slot focused for the preview; survives re-renders (the dock rebuilds this tab on every change).
+// Slot focused for the preview; survives re-renders (the dock rebuilds this section on every change).
 let focus = null;
 
 /** Every bin in list order with its effective settings and slot count. */
@@ -48,7 +51,7 @@ function writeTexts(draft, binId, n, edit) {
   else delete b.labels;
 }
 
-// ---- TEXT list -------------------------------------------------------------------------------------
+// ---- label text list -----------------------------------------------------------------------------
 
 function textRow({ update, setUi }, { bin, eff, n }, i, onFocus) {
   const input = h("input", {
@@ -70,13 +73,13 @@ function textRow({ update, setUi }, { bin, eff, n }, i, onFocus) {
   const active = focus?.binId === bin.id && focus.slot === i;
   return h(
     "div",
-    { class: `t-lrow${active ? " t-focus" : ""}` },
+    { class: `s-lrow${active ? " s-focus" : ""}` },
     h(
       "button",
-      { class: "t-tag", title: "Select this bin", onclick: () => setUi({ selected: bin.id }) },
+      { class: "s-tag", title: "Select this bin", onclick: () => setUi({ selected: bin.id }) },
       `${bin.w}×${bin.d}`,
     ),
-    h("span", { class: "t-note" }, eff.label === "full" ? "full" : `${i + 1}/${n}`),
+    h("span", { class: "s-note" }, eff.label === "full" ? "whole" : `${i + 1}/${n}`),
     input,
   );
 }
@@ -84,17 +87,17 @@ function textRow({ update, setUi }, { bin, eff, n }, i, onFocus) {
 function noTabRow({ update, setUi }, bin) {
   return h(
     "div",
-    { class: "t-lrow" },
+    { class: "s-lrow" },
     h(
       "button",
-      { class: "t-tag", onclick: () => setUi({ selected: bin.id }) },
+      { class: "s-tag", title: "Select this bin", onclick: () => setUi({ selected: bin.id }) },
       `${bin.w}×${bin.d}`,
     ),
-    h("span", { class: "t-note" }, "No label tab"),
+    h("span", { class: "s-note" }, "No tab"),
     h(
       "button",
-      { class: "t-link", onclick: () => update((d) => setValue(d, bin.id, "label", "front")) },
-      "+ ADD TAB",
+      { class: "s-link", onclick: () => update((d) => setValue(d, bin.id, "label", "front")) },
+      "Add a tab",
     ),
   );
 }
@@ -126,13 +129,13 @@ function paste(ctx, text) {
     .filter(Boolean);
   const queue = [...lines];
   const n = fillEmpty(ctx, () => queue.shift());
-  notify(`${n} labels filled`);
+  notify(n === 1 ? "Filled in 1 label" : `Filled in ${n} labels`);
 }
 
-function textColumn(ctx) {
+function textGroup(ctx) {
   const { project, update } = ctx;
   const slots = slotsOf(project);
-  const list = h("div", { class: "t-labels" });
+  const list = h("div", { class: "s-labels" });
   let preview = previewBox(ctx);
   const paintPreview = () => {
     const next = previewBox(ctx);
@@ -143,19 +146,27 @@ function textColumn(ctx) {
     if (!s.n) list.append(noTabRow(ctx, s.bin));
     for (let i = 0; i < s.n; i++) list.append(textRow(ctx, s, i, paintPreview));
   }
-  const area = h("div", { class: "t-col", hidden: true });
+  const area = h("div", { class: "s-dialog", hidden: true });
   const askList = () => {
-    const box = h("textarea", { rows: 5, placeholder: "One line per label" });
+    const box = h("textarea", { rows: 5, placeholder: "One name per line" });
     const close = () => ((area.hidden = true), area.replaceChildren());
     area.hidden = false;
     area.replaceChildren(
-      h("p", { class: "t-note" }, "One line per label. Fills empty labels in top-view order."),
+      h(
+        "p",
+        { class: "s-note" },
+        "Type or paste one name per line. They go into the empty labels, in plan-view order.",
+      ),
       box,
       h(
         "div",
-        { class: "t-btns" },
-        h("button", { class: "primary", onclick: () => (paste(ctx, box.value), close()) }, "FILL"),
-        h("button", { onclick: close }, "CANCEL"),
+        { class: "s-btns" },
+        h(
+          "button",
+          { class: "primary", onclick: () => (paste(ctx, box.value), close()) },
+          "Fill labels",
+        ),
+        h("button", { onclick: close }, "Cancel"),
       ),
     );
   };
@@ -170,119 +181,117 @@ function textColumn(ctx) {
     let k = 0;
     fillEmpty(ctx, () => String(++k));
   };
-  const total = slots.reduce((a, s) => a + s.n, 0);
   return [
+    sub("Label text"),
+    h(
+      "p",
+      { class: "hint muted" },
+      "Click a field to see that label in the preview. Up to 40 characters each.",
+    ),
+    preview,
+    slots.length
+      ? list
+      : h("p", { class: "hint muted" }, "There are no bins yet. Draw some in the plan view."),
     h(
       "div",
-      { class: "t-col" },
-      h("h3", { class: "t-h" }, "TEXT"),
-      total || slots.length
-        ? list
-        : h("p", { class: "t-note" }, "No bins yet. Draw some in the top view."),
+      { class: "s-btns" },
+      h("button", { onclick: onPaste }, "Paste a list of names"),
+      h("button", { onclick: number }, "Number the empty ones"),
       h(
-        "div",
-        { class: "t-btns" },
-        h("button", { onclick: onPaste }, "PASTE A LIST"),
-        h("button", { onclick: number }, "NUMBER EMPTY"),
-        h(
-          "button",
-          { onclick: () => update((d) => d.bins.forEach((b) => void delete b.labels)) },
-          "CLEAR ALL",
-        ),
+        "button",
+        { onclick: () => update((d) => d.bins.forEach((b) => void delete b.labels)) },
+        "Clear all labels",
       ),
-      area,
     ),
-    h("div", { class: "t-col" }, h("h3", { class: "t-h" }, "PREVIEW"), preview),
+    area,
   ];
 }
 
-// ---- LABEL TAB / STYLE -------------------------------------------------------------------------------
+// ---- tab / style -----------------------------------------------------------------------------------
 
 function tabHint(ctx) {
   const { project, bin } = ctx;
   const eff = effectiveBin(project, bin ?? {});
   const wall = WALL_NAMES[eff.labelWall];
-  if (eff.label === "none") return "No label tab. The wall is plain.";
+  if (eff.label === "none") return `No tab, so ${wall} stays plain.`;
   if (!bin) {
-    return eff.label === "full" ? `One tab across ${wall}.` : `One tab per compartment on ${wall}.`;
+    return eff.label === "full"
+      ? `One tab runs along ${wall}.`
+      : `${wall[0].toUpperCase()}${wall.slice(1)} gets one tab for each compartment.`;
   }
   const layout = getLayout(project);
   const outer = layout.error ? null : binOuter(layout.grid, bin);
   const frontBack = eff.labelWall === "front" || eff.labelWall === "back";
   if (eff.label === "full") {
-    const mm = outer ? ` ${n1(frontBack ? outer.w : outer.d)} mm wide` : "";
-    return `One tab across ${wall},${mm}.`;
+    const mm = outer ? `, ${n1(frontBack ? outer.w : outer.d)} mm wide` : "";
+    return `One tab runs along ${wall}${mm}.`;
   }
   const n = labelSlotCount(eff);
   return n === 1
-    ? `One tab on ${wall}: the bin has one compartment. Change dividers in Bins.`
-    : `${n} tabs on ${wall}, one per compartment. Change dividers in Bins.`;
+    ? `One tab on ${wall}, because this bin has a single compartment. Add splits in Bins for more.`
+    : `${n} tabs on ${wall}, one per compartment. Change the splits in Bins.`;
 }
 
-function tabColumn(ctx) {
-  return h(
-    "div",
-    { class: "t-col" },
-    h("h3", { class: "t-h" }, "LABEL TAB"),
-    scopedSegmented(ctx, "label", "Type", [
-      { value: "none", label: "None" },
-      { value: "front", label: "Per compartment" },
-      { value: "full", label: "Full width" },
+function tabGroup(ctx) {
+  return [
+    sub("Label tab"),
+    scopedSegmented(ctx, "label", "Tab", [
+      { value: "none", label: "No tab" },
+      { value: "front", label: "One per compartment" },
+      { value: "full", label: "One across the whole wall" },
     ]),
-    scopedSegmented(ctx, "labelWall", "Side", [
+    scopedSegmented(ctx, "labelWall", "Wall", [
       { value: "front", label: "Front" },
       { value: "back", label: "Back" },
       { value: "left", label: "Left" },
       { value: "right", label: "Right" },
     ]),
-    h("p", { class: "t-note" }, tabHint(ctx)),
-  );
+    h("p", { class: "hint muted" }, tabHint(ctx)),
+  ];
 }
 
-function styleColumn({ project, ui, update }) {
+function styleGroup({ project, ui, update }) {
   const s = project.labelStyle;
   const set = (prop, coalesce) => (v) =>
     update((d) => void (d.labelStyle[prop] = v), coalesce && `labelStyle:${prop}`);
   const hints = {
-    raised: `Letters stand ${s.depthMm} mm above the tab. One colour, no slicer setup.`,
-    engraved: `Letters are cut ${s.depthMm} mm into the tab. One colour; easy to fill with paint.`,
+    raised: `Letters stand ${s.depthMm} mm proud of the tab. Single colour, nothing to set up in the slicer.`,
+    engraved: `Letters are cut ${s.depthMm} mm into the tab. Single colour, and easy to fill with paint.`,
     inlay:
-      "Flush letters as a separate body in the 3MF. Assign a second filament to it in the slicer.",
+      "Letters sit flush as a separate body in the 3MF. Give that body its own filament in your slicer.",
   };
-  return h(
-    "div",
-    { class: "t-col" },
-    h("h3", { class: "t-h" }, "STYLE · ALL LABELS"),
+  return [
+    sub("Lettering (applies to every label)"),
     segmented({
       value: s.kind,
       options: [
-        { value: "raised", label: "Raised" },
-        { value: "engraved", label: "Engraved" },
-        { value: "inlay", label: "Two-colour" },
+        { value: "raised", label: "Raised letters" },
+        { value: "engraved", label: "Engraved letters" },
+        { value: "inlay", label: "Two-colour inlay" },
       ],
       onChange: set("kind"),
     }),
-    h("p", { class: "t-note" }, hints[s.kind]),
+    h("p", { class: "hint muted" }, hints[s.kind]),
     row(
-      "Letters",
+      "Capital letters",
       segmented({
         value: s.case,
         options: [
-          { value: "as", label: "As typed" },
-          { value: "upper", label: "UPPERCASE" },
+          { value: "as", label: "Keep my capitals" },
+          { value: "upper", label: "ALL CAPS" },
         ],
         onChange: set("case"),
       }),
     ),
     checkbox({
       checked: s.autoFit,
-      label: "Shrink long text to fit",
+      label: "Shrink long text to fit the tab",
       key: "label.fit",
       onChange: set("autoFit"),
     }),
     ui.advanced && [
       row(
-        "Max size",
+        "Largest letter height",
         numField({
           value: s.maxMm,
           min: 3,
@@ -294,7 +303,7 @@ function styleColumn({ project, ui, update }) {
         }),
       ),
       row(
-        "Depth",
+        "Letter depth",
         numField({
           value: s.depthMm,
           min: 0.2,
@@ -306,10 +315,10 @@ function styleColumn({ project, ui, update }) {
         }),
       ),
     ],
-  );
+  ];
 }
 
-// ---- PREVIEW -----------------------------------------------------------------------------------------
+// ---- preview ---------------------------------------------------------------------------------------
 
 const SVG = "http://www.w3.org/2000/svg";
 function svg(tag, attrs, text) {
@@ -329,11 +338,11 @@ function previewTarget(project) {
 }
 
 function previewBox({ project, ui }) {
-  const box = h("div", { class: "t-col" });
+  const box = h("div", { class: "s-stack" });
   const target = previewTarget(project);
   const layout = getLayout(project);
   if (!target || layout.error) {
-    box.append(h("p", { class: "t-note" }, "Add a label tab to preview its text."));
+    box.append(h("p", { class: "hint muted" }, "Give a bin a label tab to see a preview here."));
     return box;
   }
   const { bin, eff, n, slot } = target;
@@ -348,13 +357,13 @@ function previewBox({ project, ui }) {
   );
   const tw = r1 - r0;
   if (!depth) {
-    box.append(h("p", { class: "t-note" }, "This bin is too small for a label tab."));
+    box.append(h("p", { class: "hint muted" }, "This bin is too small to fit a label tab."));
     return box;
   }
 
   const pad = 2;
   const el = svg("svg", {
-    class: "t-preview",
+    class: "s-preview",
     viewBox: `${-pad} ${-pad} ${tw + 2 * pad} ${depth + 2 * pad}`,
   });
   el.append(
@@ -388,34 +397,38 @@ function previewBox({ project, ui }) {
   box.append(el);
   if (info) {
     box.append(
-      h("span", { class: "t-note" }, `tab ${n1(tw)} × ${n1(depth)} mm · text ${n1(info.size)} mm`),
+      h(
+        "span",
+        { class: "s-note" },
+        `Tab ${n1(tw)} × ${n1(depth)} mm · letters ${n1(info.size)} mm`,
+      ),
     );
     if (info.status === "small")
       box.append(
         h(
           "span",
-          { class: "t-note t-bad" },
-          `Long text: shrunk to ${n1(info.size)} mm. Under 4 mm may not print cleanly with a 0.4 nozzle.`,
+          { class: "s-note s-bad" },
+          `The text was shrunk to ${n1(info.size)} mm. Below 4 mm it may not print cleanly with a 0.4 mm nozzle.`,
         ),
       );
     if (info.status === "overflow")
       box.append(
         h(
           "span",
-          { class: "t-note t-bad" },
-          `Too long for the tab at ${n1(info.size)} mm: the ends are cut off. Turn on shrinking or shorten it.`,
+          { class: "s-note s-bad" },
+          `Too long for the tab even at ${n1(info.size)} mm, so the ends get cut off. Shorten it or turn on shrinking.`,
         ),
       );
     if (info.skipped?.length)
-      box.append(h("span", { class: "t-note t-bad" }, `Can't print: ${info.skipped.join(" ")}`));
+      box.append(
+        h("span", { class: "s-note s-bad" }, `Can't be printed: ${info.skipped.join(" ")}`),
+      );
   } else {
-    box.append(h("span", { class: "t-note" }, `tab ${n1(tw)} × ${n1(depth)} mm`));
+    box.append(h("span", { class: "s-note" }, `Tab ${n1(tw)} × ${n1(depth)} mm`));
   }
   return box;
 }
 
 export function render(ctx) {
-  const [text, preview] = textColumn(ctx);
-  const side = h("div", { class: "t-col" }, tabColumn(ctx), styleColumn(ctx));
-  return h("div", { class: "t-tab" }, h("div", { class: "t-cols" }, text, side, preview));
+  return h("div", { class: "s-sec" }, tabGroup(ctx), textGroup(ctx), styleGroup(ctx));
 }

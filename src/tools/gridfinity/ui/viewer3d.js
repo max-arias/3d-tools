@@ -4,24 +4,19 @@ import { h } from "../../../shell/h.js";
 import { projects, ui, setUi, getLayout } from "./state.js";
 import { effectiveBin, binHeight } from "../model/effective.js";
 import { isValid, moveRect } from "../layout/bins.js";
-import { renderPlates } from "./plates.js";
 
 const cssColor = (name) =>
   getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#888";
-const EXPLODE = { bin: 40, binKey: 80, tileKey: -25, spread: 6 / 170 };
-const VIEWS = [
-  ["assembled", "ASSEMBLED"],
-  ["exploded", "EXPLODED"],
-  ["plates", "PLATES"],
-];
-
+const EXPLODE = { bin: 40, binKey: 80, lid: 75, tileKey: -25, spread: 6 / 170 };
 export function createViewer() {
-  const head = h("div", { class: "pane-head" });
   const wrap = h("div", { class: "v3-wrap" });
-  const plates = h("div", { class: "plates" });
-  const root = h("section", { class: "view3d", "data-guide": "view" }, head, wrap, plates);
+  const root = h("section", { class: "pane pane-3d", "data-guide": "view" }, wrap);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    preserveDrawingBuffer: true,
+  });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.toneMapping = THREE.AgXToneMapping;
   wrap.append(renderer.domElement);
@@ -61,12 +56,11 @@ export function createViewer() {
         new THREE.Color(cssColor(`--m-${k}`)),
       ]),
     );
-    scene.background = colors.bg;
   };
 
   // ---- scene content ----------------------------------------------------------------------------------
   const partColor = (part, project) => {
-    if (part.inlay || part.kind === "key") return colors.key;
+    if (part.inlay || part.kind === "key" || part.kind === "lid") return colors.key;
     if (part.kind === "tile") return colors.bp;
     const bin = project.bins.find((b) => b.id === part.binId);
     if (!bin) return colors.bin1;
@@ -136,25 +130,32 @@ export function createViewer() {
   }
 
   function layoutParts() {
-    const { view, showBins, showBase, partHover, partSel } = ui.get();
-    const exploded = view === "exploded";
+    const { exploded, showBins, showBase, showLids, partHover, partSel } = ui.get();
     const hot = partSel ?? partHover;
     for (const { mesh, edges, part, base } of meshes) {
       const isBin = part.kind === "bin" || part.binKey;
-      const visible = isBin ? showBins : showBase;
+      const isLid = part.kind === "lid";
+      const visible = isLid ? showLids : isBin ? showBins : showBase;
       let dz = 0;
       let dxy = 0;
       if (exploded) {
-        dz = part.binKey
-          ? EXPLODE.binKey
-          : part.kind === "bin"
-            ? EXPLODE.bin
-            : part.kind === "key"
-              ? EXPLODE.tileKey
-              : 0;
+        dz = isLid
+          ? EXPLODE.lid
+          : part.binKey
+            ? EXPLODE.binKey
+            : part.kind === "bin"
+              ? EXPLODE.bin
+              : part.kind === "key"
+                ? EXPLODE.tileKey
+                : 0;
         dxy = EXPLODE.spread;
       }
       const p = new THREE.Vector3(base.x * (1 + dxy), base.y * (1 + dxy), base.z + dz);
+      // Parts printed upside down are stored flipped; turn them back (a 180° turn about x, no mirroring).
+      if (part.flipped) p.add(new THREE.Vector3(0, part.size[1], part.size[2]));
+      const turn = part.flipped ? -1 : 1;
+      mesh.scale.set(1, turn, turn);
+      edges.scale.set(1, turn, turn);
       mesh.position.copy(p);
       edges.position.copy(p);
       mesh.visible = edges.visible = visible;
@@ -228,7 +229,7 @@ export function createViewer() {
   }
 
   function onDown(e) {
-    if (ui.get().view !== "assembled" || !ui.get().showBins || e.button !== 0) return;
+    if (ui.get().exploded || !ui.get().showBins || e.button !== 0) return;
     const hits = pointer(e).intersectObjects(
       meshes.map((m) => m.mesh).filter((m) => m.visible && m.userData.part.binId),
     );
@@ -289,92 +290,37 @@ export function createViewer() {
   renderer.domElement.addEventListener("pointermove", onMove);
   renderer.domElement.addEventListener("pointerup", onUp);
 
-  // ---- header --------------------------------------------------------------------------------------------------
-  function paintHead() {
-    const { view, showBins, showBase, busy, error, result } = ui.get();
-    const nPlates = result ? document.querySelectorAll(".plate").length : 0;
-    head.replaceChildren(
-      ...[
-        h("b", {}, view === "plates" ? `PRINT PLATES${nPlates ? ` · ${nPlates}` : ""}` : "3D"),
-        h(
-          "span",
-          { class: "segmented" },
-          VIEWS.map(([id, label]) =>
-            h(
-              "button",
-              { "aria-pressed": String(view === id), onclick: () => setUi({ view: id }) },
-              label,
-            ),
-          ),
-        ),
-        h("span", { class: "muted" }, "SHOW"),
-        h(
-          "button",
-          {
-            "aria-pressed": String(showBase),
-            title: "Hide / show baseplate (G)",
-            onclick: () => setUi({ showBase: !showBase }),
-          },
-          "BASEPLATE",
-        ),
-        h(
-          "button",
-          {
-            "aria-pressed": String(showBins),
-            title: "Hide / show bins (B)",
-            onclick: () => setUi({ showBins: !showBins }),
-          },
-          "BINS",
-        ),
-        h("span", { class: "spacer" }),
-        busy ? h("span", { class: "badge" }, "Generating…") : null,
-        error ? h("span", { class: "badge bad", title: error }, "Error") : null,
-      ].filter(Boolean),
-    );
-    if (error) {
-      root.querySelector(".v3-error")?.remove();
-      wrap.append(
-        h(
-          "div",
-          { class: "v3-error" },
-          `The 3D model could not be built: ${error}. Reload the page; if it keeps failing, please report it.`,
-        ),
-      );
-    } else root.querySelector(".v3-error")?.remove();
-  }
-
   // ---- state wiring -------------------------------------------------------------------------------------------
   let lastResult = null;
-  let lastView = null;
   let lastFrame = -1;
   const sync = () => {
     const s = ui.get();
-    paintHead();
-    const plateView = s.view === "plates";
-    wrap.style.display = plateView ? "none" : "";
-    plates.style.display = plateView ? "" : "none";
     if (s.result !== lastResult) {
       lastResult = s.result;
       rebuild();
     } else layoutParts();
-    if (plateView) renderPlates(plates);
-    if (s.view !== lastView) {
-      lastView = s.view;
-      if (!plateView) resize();
-    }
     if (s.frameNonce !== lastFrame) {
       lastFrame = s.frameNonce;
       frame();
     }
   };
 
+  let shown = false;
   function resize() {
     const w = wrap.clientWidth;
     const hgt = wrap.clientHeight;
-    if (w < 2 || hgt < 2) return;
+    if (w < 2 || hgt < 2) {
+      shown = false;
+      return;
+    }
     renderer.setSize(w, hgt, false);
     camera.aspect = w / hgt;
     camera.updateProjectionMatrix();
+    // Frame the drawer the first time the pane has a real size (including when it is shown again).
+    if (!shown) {
+      shown = true;
+      frame();
+    }
     markDirty();
   }
   new ResizeObserver(resize).observe(wrap);

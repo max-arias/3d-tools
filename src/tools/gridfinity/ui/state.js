@@ -42,11 +42,13 @@ export const projects = createProjectStore(start.project);
 
 export const ui = createStore({
   selected: null, // bin id, or null = ALL BINS
-  view: "assembled", // assembled | exploded | plates
-  dockTab: pref.get("tab", "drawer"),
+  stageView: pref.get("stageView", matchMedia("(min-width: 1100px)").matches ? "split" : "plan"), // plan | 3d | split | plates
+  exploded: false,
+  dockTab: pref.get("section", "space"),
   advanced: pref.get("advanced", "0") === "1",
   showBins: true,
   showBase: true,
+  showLids: false,
   result: null, // last successful generation
   busy: false,
   error: null,
@@ -65,8 +67,12 @@ export const ui = createStore({
 
 export const setUi = (patch) => ui.set(patch);
 export { pref };
+export const setStageView = (stageView) => {
+  pref.set("stageView", stageView);
+  ui.set({ stageView });
+};
 export const setDockTab = (tab) => {
-  pref.set("tab", tab);
+  pref.set("section", tab ?? "");
   ui.set({ dockTab: tab });
 };
 export const setAdvanced = (on) => {

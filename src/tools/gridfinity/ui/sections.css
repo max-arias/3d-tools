@@ -1,0 +1,423 @@
+/* Sidebar sections: one column, ~340 px. Shared widgets (.row .num .segmented .card ...) live in base.css. */
+.s-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 8px 4px;
+  font-size: 13.5px;
+  min-width: 0;
+}
+.s-sec > .row,
+.s-sec .row {
+  margin: 2px 0;
+}
+.s-sec .row > label,
+.s-sec .row > .s-lbl {
+  min-width: 0;
+}
+.s-sec .segmented {
+  flex-wrap: wrap;
+}
+.s-sec .hint {
+  margin: 0;
+  line-height: 1.45;
+}
+.s-sec textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.s-sub {
+  margin: 14px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.s-sec > .s-sub:first-child {
+  margin-top: 4px;
+}
+.s-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.s-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.s-bad {
+  color: var(--danger);
+}
+.s-ok {
+  color: var(--success);
+}
+.s-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 12.5px;
+}
+.s-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* callouts */
+.s-box {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+.s-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.s-warnbox {
+  border-color: var(--warn);
+}
+.s-warnhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warn);
+}
+.s-calc {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+}
+.s-calc > :nth-child(even) {
+  text-align: right;
+  font-family: var(--mono);
+}
+.s-calc > b {
+  padding-top: 4px;
+  margin-top: 2px;
+  border-top: 1px solid var(--line);
+}
+
+/* option cards, presets */
+.s-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.s-cards.s-two {
+  grid-template-columns: 1fr 1fr;
+}
+.s-cards .card .muted {
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.s-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.s-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.s-dialog {
+  border: 1px solid var(--accent-2);
+  border-radius: var(--radius-lg);
+  background: var(--panel-2);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.s-dialog[hidden] {
+  display: none;
+}
+
+/* scope markers */
+.s-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.s-mark {
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0 2px;
+  font-family: inherit;
+}
+.s-mark.s-on {
+  color: var(--accent-text);
+}
+.s-mark.s-btn {
+  cursor: pointer;
+}
+.s-mark.s-btn:hover {
+  text-decoration: underline;
+}
+span.s-mark.s-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.s-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+}
+.s-checkrow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.s-checkrow > .row {
+  margin: 0;
+}
+
+/* printable area */
+.s-bed {
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+}
+.s-bed > div {
+  position: absolute;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* spare-space position pad */
+.s-pad {
+  display: grid;
+  grid-template: repeat(3, 34px) / repeat(3, 76px);
+  gap: 4px;
+  justify-content: start;
+}
+.s-pad button {
+  padding: 0;
+}
+.s-pad button:nth-child(1) {
+  grid-area: 1 / 2;
+}
+.s-pad button:nth-child(2) {
+  grid-area: 2 / 1;
+}
+.s-pad button:nth-child(3) {
+  grid-area: 2 / 2;
+}
+.s-pad button:nth-child(4) {
+  grid-area: 2 / 3;
+}
+.s-pad button:nth-child(5) {
+  grid-area: 3 / 2;
+}
+
+/* wall picker */
+.s-walls {
+  display: grid;
+  grid-template: 30px 64px 30px / 64px 110px 64px;
+  gap: 4px;
+  justify-content: center;
+}
+.s-binbox {
+  grid-area: 2 / 2;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+.s-walls button {
+  padding: 0;
+  font-size: 12px;
+}
+.s-walls button[data-wall="back"] {
+  grid-area: 1 / 2;
+}
+.s-walls button[data-wall="left"] {
+  grid-area: 2 / 1;
+}
+.s-walls button[data-wall="right"] {
+  grid-area: 2 / 3;
+}
+.s-walls button[data-wall="front"] {
+  grid-area: 3 / 2;
+}
+.s-walls button.s-has::after {
+  content: " ●";
+  font-size: 9px;
+  color: var(--accent);
+}
+
+/* labels */
+.s-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow: auto;
+}
+.s-lrow {
+  display: grid;
+  grid-template-columns: 58px 40px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  padding: 1px;
+  border-radius: var(--radius);
+}
+.s-lrow input {
+  min-width: 0;
+}
+.s-lrow.s-focus {
+  outline: 1px solid var(--accent-2);
+}
+.s-tag {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 2px 4px;
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+}
+.s-preview {
+  width: 100%;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.s-preview text {
+  fill: var(--text);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+}
+
+/* parts table */
+.s-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.s-table th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 3px;
+}
+.s-table td {
+  padding: 4px 3px;
+  border-top: 1px solid var(--line);
+  vertical-align: middle;
+}
+.s-table td:nth-child(3) {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.s-table tr.s-part {
+  cursor: pointer;
+}
+.s-table tr.s-part:hover,
+.s-table tr.s-sel {
+  background: var(--panel-2);
+}
+.s-table tr.s-badrow td:first-child {
+  color: var(--danger);
+}
+.s-dl {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 2px;
+}
+.s-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  background: var(--m-bin2);
+}
+.s-swatch.s-tile {
+  background: var(--m-bp);
+}
+.s-swatch.s-key {
+  background: var(--m-key);
+}
+.s-swatch.s-test {
+  background: var(--accent);
+}
+
+/* ---- isometric drawer ---- */
+.s-iso {
+  position: relative;
+  max-width: 340px;
+  aspect-ratio: 320 / 240;
+  margin: 4px auto 10px;
+}
+.s-iso svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.s-iso .iso-floor {
+  fill: var(--m-floor);
+}
+.s-iso .iso-back {
+  fill: var(--panel-2);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.s-iso .iso-back2 {
+  fill: color-mix(in srgb, var(--panel-2) 80%, var(--line));
+}
+.s-iso .iso-front {
+  fill: var(--panel);
+  stroke: var(--muted);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+.s-iso .iso-front2 {
+  fill: color-mix(in srgb, var(--panel) 88%, var(--line));
+}
+.s-iso .iso-rim {
+  stroke: var(--muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.s-iso .iso-dim,
+.s-iso .iso-tick {
+  stroke: var(--accent-2);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.s-dimfield {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.s-dimfield .num input {
+  width: 62px;
+}

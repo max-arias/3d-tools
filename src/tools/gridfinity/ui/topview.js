@@ -1,7 +1,8 @@
 import { h, clear } from "../../../shell/h.js";
+import { icon } from "../../../shell/icons.js";
 import { projects, ui, setUi, getLayout, selectedBin } from "./state.js";
 import { isValid, moveRect, rectFromCells, resizeRect } from "../layout/bins.js";
-import { addBin, duplicate, fill, remove, removeAll, taller } from "./actions.js";
+import { addBin, duplicate, remove, taller } from "./actions.js";
 import { effectiveBin } from "../model/effective.js";
 import { heightLimit } from "../layout/limits.js";
 
@@ -23,12 +24,16 @@ const heightClass = (eff) => {
 
 export function createTopView() {
   const area = h("div", { class: "tv-area", "data-guide": "top" });
-  const root = h("section", { class: "topview" }, area);
+  const legend = h(
+    "div",
+    { class: "tv-legend" },
+    h("span", {}, h("i", { class: "r1" }), "Short"),
+    h("span", {}, h("i", { class: "r2" }), "Medium"),
+    h("span", {}, h("i", { class: "r3" }), "Tall"),
+  );
+  const root = h("section", { class: "pane pane-plan" }, area, legend);
   let size = { w: 0, h: 0 };
   let drag = null; // { kind, ... , ghost }
-
-  const header = h("div", { class: "pane-head" });
-  root.prepend(header);
 
   // ---- geometry helpers -----------------------------------------------------------------
   const metrics = (project, layout) => {
@@ -66,7 +71,6 @@ export function createTopView() {
     const project = projects.get();
     const state = ui.get();
     const layout = getLayout(project);
-    paintHeader(project);
     clear(area);
     if (layout.error) {
       area.append(h("div", { class: "tv-error" }, `Layout unavailable: ${layout.error}`));
@@ -163,7 +167,7 @@ export function createTopView() {
   function paintBin(project, state, m, grid, bin, limit) {
     const eff = effectiveBin(project, bin);
     const over = (eff.heightMm || eff.units * 7) + (eff.lip ? 4.4 : 0) > limit.limit + 1e-6;
-    const label = eff.heightMm ? `${eff.heightMm}mm` : `${eff.units}u`;
+    const label = eff.heightMm ? `${eff.heightMm} mm` : `${eff.units} u`;
     const el = h(
       "div",
       {
@@ -172,7 +176,7 @@ export function createTopView() {
         dataset: { id: bin.id },
         onpointerdown: (e) => startMove(e, bin),
       },
-      h("span", { class: "tv-size" }, `${bin.w}×${bin.d}`),
+      h("span", { class: "tv-size" }, `${bin.w} × ${bin.d}`),
       h("span", { class: "tv-h" }, label),
     );
     // divider marks
@@ -181,6 +185,7 @@ export function createTopView() {
     for (let k = 1; k <= eff.dividersY; k++)
       el.append(h("i", { class: "dh", style: `top:${(k / (eff.dividersY + 1)) * 100}%` }));
     if (eff.label !== "none") el.append(h("i", { class: `lbl ${eff.labelWall}` }));
+    if (eff.lid !== "none") el.append(h("i", { class: "lid", title: "Has a lid" }));
     area.append(el);
   }
 
@@ -199,34 +204,25 @@ export function createTopView() {
     area.append(frame);
 
     const eff = effectiveBin(project, bin);
-    const units = eff.heightMm ? `${eff.heightMm}mm` : `${eff.units}U`;
+    const height = eff.heightMm ? `${eff.heightMm} mm` : `${eff.units} u`;
     const left = parseFloat(frame.style.left);
     const top = parseFloat(frame.style.top);
-    const bar = h(
-      "div",
-      { class: "tv-bar", style: `left:${Math.max(4, left)}px;top:${Math.max(4, top - 34)}px` },
-      h("button", { onclick: () => ui.set({ dockTab: "bins" }) }, `BIN ${bin.w}×${bin.d}`),
-      h("button", { title: "One step taller (+)", onclick: () => taller(bin.id) }, `↑ ${units}`),
-      h("button", { onclick: () => duplicate(bin.id) }, "DUPLICATE"),
-      h("button", { onclick: () => remove(bin.id) }, "DELETE"),
-    );
-    area.append(bar);
-  }
-
-  function paintHeader(project) {
-    clear(header);
-    header.append(
-      h("b", {}, "TOP VIEW"),
-      h("span", { class: "spacer" }),
-      h("button", { disabled: !projects.canUndo(), onclick: () => projects.undo() }, "↶ UNDO"),
-      h("button", { disabled: !projects.canRedo(), onclick: () => projects.redo() }, "↷ REDO"),
-      h("button", { onclick: () => fill() }, "FILL EMPTY CELLS"),
+    const tool = (name, label, fn, text) =>
       h(
         "button",
-        { disabled: project.bins.length === 0, onclick: () => removeAll() },
-        "REMOVE ALL BINS",
-      ),
+        { class: "icon-btn ghost", title: label, "aria-label": label, onclick: fn },
+        icon(name, 16),
+        text,
+      );
+    const bar = h(
+      "div",
+      { class: "tv-bar", style: `left:${Math.max(4, left)}px;top:${Math.max(4, top - 44)}px` },
+      h("span", { class: "tv-bar-name" }, `${bin.w} × ${bin.d}`),
+      tool("arrow-up", "One step taller (+)", () => taller(bin.id), height),
+      tool("copy", "Duplicate (D)", () => duplicate(bin.id)),
+      tool("trash", "Delete (Del)", () => remove(bin.id)),
     );
+    area.append(bar);
   }
 
   // ---- pointer interaction ----------------------------------------------------------------------
@@ -244,7 +240,11 @@ export function createTopView() {
     const m = metrics(project, layout);
     const start = local(e);
     drag = { ...init, m, grid: layout.grid, start, step: step(project), moved: false };
-    area.setPointerCapture?.(e.pointerId);
+    try {
+      area.setPointerCapture(e.pointerId);
+    } catch {
+      // The pointer already ended (very quick tap); dragging still works through the area's own events.
+    }
   }
 
   function startCreate(e) {
@@ -263,8 +263,7 @@ export function createTopView() {
 
   function startMove(e, bin) {
     begin(e, { kind: "move", id: bin.id, orig: { x: bin.x, y: bin.y, w: bin.w, d: bin.d } });
-    if (drag)
-      setUi({ selected: bin.id, view: ui.get().view === "plates" ? "assembled" : ui.get().view });
+    if (drag) setUi({ selected: bin.id });
   }
 
   function startResize(e, bin, edges) {

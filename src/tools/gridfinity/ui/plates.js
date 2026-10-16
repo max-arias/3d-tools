@@ -4,6 +4,11 @@ import { projects, ui } from "./state.js";
 
 const SPACING = 5;
 
+// Re-rendering under the cursor fires mouseenter again, so only write when the hover really changed.
+const hover = (name) => {
+  if (ui.get().partHover !== name) ui.set({ partHover: name });
+};
+
 /** Plates view: one scaled rectangle per print plate with every part placed on it. */
 export function renderPlates(container) {
   const { result, partHover, partSel } = ui.get();
@@ -35,8 +40,8 @@ export function renderPlates(container) {
           class: `plate-part ${part?.kind ?? ""}${it.id === active ? " hot" : ""}`,
           title: it.id,
           style: `left:${(it.x / usableX) * 100}%;top:${(it.y / usableY) * 100}%;width:${(it.w / usableX) * 100}%;height:${(it.d / usableY) * 100}%`,
-          onmouseenter: () => ui.set({ partHover: it.id }),
-          onmouseleave: () => ui.set({ partHover: null }),
+          onmouseenter: () => hover(it.id),
+          onmouseleave: () => hover(null),
           onclick: () => ui.set({ partSel: ui.get().partSel === it.id ? null : it.id }),
         }),
       );

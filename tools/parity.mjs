@@ -29,12 +29,14 @@ async function downloadZip(base) {
   });
   await page.goto(`${base}#p=${payload}`, { waitUntil: "networkidle" }).catch(() => {});
   await page.waitForTimeout(9000);
-  await page.getByText("PARTS", { exact: false }).first().click();
+  const original = base.includes("fitforge");
+  if (original) await page.getByText("PARTS", { exact: false }).first().click();
+  else await page.locator(".acc-head", { hasText: "Print & export" }).click();
   await page.waitForTimeout(1000);
-  const [dl] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByText("STLS (ZIP)", { exact: false }).first().click(),
-  ]);
+  const button = original
+    ? page.getByText("STLS (ZIP)", { exact: false }).first()
+    : page.getByText("STL files + parts list").first();
+  const [dl] = await Promise.all([page.waitForEvent("download"), button.click()]);
   const zip = unzipSync(new Uint8Array(readFileSync(await dl.path())));
   await browser.close();
   return zip;

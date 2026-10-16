@@ -9,26 +9,9 @@ export function installPhone(app) {
   const apply = () => {
     const s = ui.get();
     app.dataset.sheet = s.sheet;
-    app.dataset.mobile = s.mobileView;
   };
   ui.subscribe(apply);
   apply();
-
-  const toggle = h(
-    "div",
-    { class: "mobile-switch segmented" },
-    h(
-      "button",
-      { onclick: () => setUi({ mobileView: "top" }), "aria-pressed": "true" },
-      "TOP VIEW",
-    ),
-    h("button", { onclick: () => setUi({ mobileView: "3d" }) }, "3D"),
-  );
-  ui.subscribe(({ mobileView }) => {
-    [...toggle.children].forEach((b, i) =>
-      b.setAttribute("aria-pressed", String((i === 0) === (mobileView === "top"))),
-    );
-  });
 
   const handle = h(
     "button",
@@ -43,8 +26,7 @@ export function installPhone(app) {
     h("i"),
   );
 
-  app.querySelector(".topbar")?.after(toggle);
-  app.querySelector(".dock")?.prepend(handle);
+  app.querySelector(".sidebar")?.prepend(handle);
   return phone() ? maybeNotice() : null;
 }
 

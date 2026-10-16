@@ -9,7 +9,8 @@
     "preview": "vp preview",
     "test": "vp test",
     "check": "vp check",
-    "font": "node tools/build-font.mjs"
+    "font": "node tools/build-font.mjs",
+    "smoke": "node tools/ui-smoke.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",
@@ -26,5 +27,12 @@
   },
   "overrides": {
     "vite": "npm:@voidzero-dev/vite-plus-core@0.3.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "12.2.0",
+      "onFail": "download"
+    }
   }
 }

@@ -1,6 +1,8 @@
 import { GF, floorHeight, magnetOffset } from "../constants.js";
 import { effectiveBin, binHeight } from "../model/effective.js";
 import { isValid, overlaps } from "./bins.js";
+import { planBinSegments } from "./binsplit.js";
+import { lidProblem, lidTop } from "./lids.js";
 
 const fmt = (n) => String(+n.toFixed(1));
 
@@ -21,11 +23,22 @@ export function layoutWarnings(project, grid) {
       out.push(`${name} overlaps another bin`);
     }
     const eff = effectiveBin(project, bin);
-    const topZ = floor + binHeight(eff) + (eff.lip ? GF.lipH : 0);
+    const binTop = binHeight(eff) + (eff.lip ? GF.lipH : 0);
+    const topZ = floor + Math.max(binTop, lidTop(eff) ?? 0);
     if (project.drawer.h - topZ < project.drawer.topClearance - 1e-9) {
       out.push(
         `${name}: top at ${fmt(topZ)} mm leaves less than the ${fmt(project.drawer.topClearance)} mm top clearance in a ${fmt(project.drawer.h)} mm drawer`,
       );
+    }
+    if (eff.lid !== "none") {
+      let pieces = 1;
+      try {
+        pieces = planBinSegments(grid, project.printer, bin, eff).segments.length;
+      } catch {
+        // Splitting errors are reported when the geometry is built.
+      }
+      const problem = lidProblem(eff, pieces);
+      if (problem) out.push(`${name}: ${problem}, so it gets no lid`);
     }
     if (!eff.split) {
       const w = bin.w * grid.pitchX;

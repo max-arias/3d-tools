@@ -73,6 +73,16 @@ export function partsText(result, project, data) {
       `Bin print: ${project.binPrint}. Set the bin object settings listed in the 3MF in your slicer.`,
       "",
     );
+  const pins = new Map();
+  for (const p of result.parts)
+    if (p.pinLength) pins.set(p.pinLength, (pins.get(p.pinLength) ?? 0) + 1);
+  if (pins.size) {
+    const list = [...pins].map(([len, n]) => `${n} × ${len} mm`).join(", ");
+    lines.push(
+      `Hinge pins: cut 1.75 mm filament to ${list}. Push one through each hinged lid and its bin posts.`,
+      "",
+    );
+  }
   if (result.parts.some((p) => p.inlay))
     lines.push(
       "Two-colour labels: assign a second filament to the _text bodies in your slicer.",

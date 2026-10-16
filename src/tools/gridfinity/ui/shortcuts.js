@@ -1,5 +1,5 @@
 import { h } from "../../../shell/h.js";
-import { projects, ui, setUi, notify } from "./state.js";
+import { projects, ui, setUi, setStageView, notify } from "./state.js";
 import { duplicate, fill, nudge, remove, resizeBy, selectNeighbour, taller } from "./actions.js";
 import { shareUrl } from "../model/persist.js";
 
@@ -8,39 +8,40 @@ const mod = mac ? "⌘" : "Ctrl";
 
 export const SHORTCUTS = [
   [
-    "EDITING",
+    "Editing",
     [
       [`${mod}+Z`, "Undo"],
       [`${mod}+Shift+Z or ${mod}+Y`, "Redo"],
-      ["F", "Fill empty cells"],
+      ["F", "Fill every empty cell"],
     ],
   ],
   [
-    "SELECTED BIN",
+    "Selected bin",
     [
-      ["] / [", "Select next / previous bin"],
-      ["Arrow keys", "Move by one cell"],
-      ["Shift+Arrows", "Resize: → ↑ grow, ← ↓ shrink"],
-      ["+ / −", "Taller / lower by one step"],
-      ["D", "Duplicate into the nearest free space"],
+      ["] / [", "Select the next / previous bin"],
+      ["Arrow keys", "Nudge by one cell"],
+      ["Shift+Arrows", "Resize (→ ↑ grow, ← ↓ shrink)"],
+      ["+ / −", "One step taller / shorter"],
+      ["D", "Copy into the nearest free space"],
       ["Delete", "Delete"],
-      ["Esc", "Deselect, close this window"],
+      ["Esc", "Deselect, or close this window"],
     ],
   ],
   [
-    "VIEW",
+    "View",
     [
-      ["1 / 2 / 3", "Assembled / Exploded / Print plates"],
-      ["B", "Hide / show bins"],
-      ["G", "Hide / show baseplate"],
-      ["R", "Reset the 3D camera"],
+      ["1 / 2 / 3 / 4", "Plan / 3D / Split / Print plates"],
+      ["E", "Pull the model apart / put it back"],
+      ["B", "Show or hide bins"],
+      ["G", "Show or hide the baseplate"],
+      ["R", "Re-centre the 3D camera"],
     ],
   ],
   [
-    "PROJECT",
+    "Project",
     [
-      ["L", "Copy share link"],
-      ["?", "Show these shortcuts"],
+      ["L", "Copy a link to this design"],
+      ["?", "Open this list"],
     ],
   ],
 ];
@@ -112,11 +113,16 @@ export function installShortcuts() {
       case "Escape":
         return setUi({ selected: null });
       case "1":
-        return setUi({ view: "assembled" });
+        return setStageView("plan");
       case "2":
-        return setUi({ view: "exploded" });
+        return setStageView("3d");
+      case "e":
+      case "E":
+        return setUi({ exploded: !s.exploded });
       case "3":
-        return setUi({ view: "plates" });
+        return setStageView("split");
+      case "4":
+        return setStageView("plates");
       case "b":
       case "B":
         return setUi({ showBins: !s.showBins });
@@ -150,13 +156,13 @@ export function createHelp() {
         h(
           "div",
           { class: "modal-head" },
-          h("b", {}, "KEYBOARD SHORTCUTS"),
+          h("h2", {}, "Keyboard shortcuts"),
           h("button", { onclick: () => setUi({ helpOpen: false }) }, "Close"),
         ),
         h(
           "p",
           { class: "muted" },
-          "Shortcuts are optional: every one of them repeats a button or a drag. They work when no text field has focus.",
+          "Nothing here is required: each shortcut repeats something you can do with the mouse. They work whenever you are not typing in a field.",
         ),
         h(
           "div",
@@ -175,7 +181,7 @@ export function createHelp() {
         h(
           "p",
           { class: "muted" },
-          mac ? "On Mac, Ctrl is ⌘. Esc or ? closes this window." : "Esc or ? closes this window.",
+          mac ? "On a Mac, Ctrl means ⌘. Press Esc or ? to close." : "Press Esc or ? to close.",
         ),
       ),
     );

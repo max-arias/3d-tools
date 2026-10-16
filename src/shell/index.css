@@ -1,38 +1,58 @@
 main {
-  max-width: 860px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 48px 16px;
+  padding: 56px 20px;
+}
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 h1 {
-  font-size: 22px;
-  letter-spacing: 0.08em;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+.lede {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 15px;
 }
 .tools {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-  margin-top: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
 }
 .tool {
   display: block;
-  padding: 16px;
+  padding: 20px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   color: inherit;
   text-decoration: none;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.12s,
+    border-color 0.12s;
 }
 a.tool:hover {
+  transform: translateY(-2px);
   border-color: var(--accent);
 }
 .tool.soon {
-  opacity: 0.5;
+  opacity: 0.55;
+  box-shadow: none;
 }
 .tool h2 {
-  margin: 0 0 6px;
-  font-size: 15px;
+  margin: 10px 0 6px;
+  font-size: 17px;
 }
 .tool p {
-  margin: 0;
   color: var(--muted);
+}
+.tool .icon {
+  width: 28px;
+  height: 28px;
+  color: var(--accent-2);
 }

@@ -28,6 +28,11 @@ export const defaultBinDefaults = () => ({
   floorSeam: "butt",
   seamJoint: "none",
   wallPattern: "solid",
+  lid: "none",
+  lidThickness: 1.6,
+  lidFit: 0.25,
+  lidHandle: "dip",
+  lidSide: "back",
 });
 
 export function defaultProject() {

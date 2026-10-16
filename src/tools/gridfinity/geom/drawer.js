@@ -11,6 +11,8 @@ import { planBinSegments } from "../layout/binsplit.js";
 import { effectiveBin, binHeight } from "../model/effective.js";
 import { GF } from "../constants.js";
 import { buildBinSegment } from "./bin.js";
+import { buildLid } from "./lid.js";
+import { lidProblem } from "../layout/lids.js";
 
 const SPARES = 2;
 
@@ -155,7 +157,28 @@ function buildBins(kit, project, grid, floor, font, cache, parts, warnings) {
           magnets: res.magnets,
           noOpenings: res.noOpenings,
           labels: labelsOut,
+          lid: null,
         };
+        if (!lidProblem(eff, plan.segments.length)) {
+          const lid = buildLid(kit, {
+            project,
+            grid,
+            bin,
+            eff,
+            seg,
+            frame: res.frame,
+            interior: res.interior,
+          });
+          if (lid) {
+            const at = lid.assembled.boundingBox();
+            built.lid = {
+              out: kit.export(lid.flip ? kit.rot(lid.assembled, 180, 0, 0) : lid.assembled),
+              min: [...at.min],
+              flipped: lid.flip,
+              pinLength: lid.pinLength ?? null,
+            };
+          }
+        }
         cache.set(key, built);
         if (cache.size > 400) cache.delete(cache.keys().next().value);
       }
@@ -172,6 +195,19 @@ function buildBins(kit, project, grid, floor, font, cache, parts, warnings) {
         ...out,
         place: [originX + out.min[0], originY + out.min[1], floor + out.min[2]],
       });
+      if (built.lid) {
+        const { out: lidOut, min: at } = built.lid;
+        parts.push({
+          name: `lid_${fmtCells(bin.w)}x${fmtCells(bin.d)}_${bin.id}${segSuffix}`,
+          base: `lid_${fmtCells(bin.w)}x${fmtCells(bin.d)}${segSuffix}`,
+          kind: "lid",
+          binId: bin.id,
+          flipped: built.lid.flipped,
+          pinLength: built.lid.pinLength,
+          ...lidOut,
+          place: [originX + at[0], originY + at[1], floor + at[2]],
+        });
+      }
       if (built.inlay) {
         parts.push({
           name: `${name}_text`,

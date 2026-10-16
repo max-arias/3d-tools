@@ -1,9 +1,8 @@
 import { h } from "../../../shell/h.js";
 import { applyTheme } from "../../../shell/theme.js";
-import { createDock } from "./dock.js";
-import { createTopBar } from "./topbar.js";
-import { createTopView } from "./topview.js";
-import { createViewer } from "./viewer3d.js";
+import { createHeader } from "./header.js";
+import { createSidebar } from "./sidebar.js";
+import { createStage } from "./stage.js";
 import { ui, startApp } from "./state.js";
 import { createHelp, installShortcuts } from "./shortcuts.js";
 import { createGuide, startGuideIfFirstVisit } from "./guide.js";
@@ -25,9 +24,8 @@ function createToast() {
 
 const app = document.getElementById("app");
 app.append(
-  createTopBar(),
-  h("main", { class: "views" }, createTopView(), createViewer()),
-  createDock(),
+  createHeader(),
+  h("main", { class: "workspace" }, createSidebar(), createStage()),
   createToast(),
   createHelp(),
   createGuide(),

@@ -3,6 +3,7 @@ import { binHeight } from "../model/effective.js";
 import { labelSlotCount, slotRanges, tabDepth, textBox } from "../layout/labels.js";
 import { fitText, layoutText } from "./text.js";
 import { KEY_LENGTH, keySlot } from "./keys.js";
+import { RAIL, hidesLabelTab, hingeSpec, slidingLevels } from "../layout/lids.js";
 
 const SEAM_GAP = 0.1;
 const LAP_LEN = 5;
@@ -101,9 +102,9 @@ function openingShapes(kind, region) {
  * Wall frame: depth +X (into the bin from the wall's cell edge), along +Y, z up.
  * Features are built in this frame and placed on a wall with `toWall`.
  */
-const wallLength = (wall, W, D) => (wall === "front" || wall === "back" ? W : D);
+export const wallLength = (wall, W, D) => (wall === "front" || wall === "back" ? W : D);
 
-function toWall(kit, m, wall, W, D) {
+export function toWall(kit, m, wall, W, D) {
   switch (wall) {
     case "left":
       return m;
@@ -117,13 +118,13 @@ function toWall(kit, m, wall, W, D) {
 }
 
 /** 2D (along, z) profile extruded through the wall depth [d0, d1], in wall frame. */
-function alongProfile(kit, cs, d0, d1) {
+export function alongProfile(kit, cs, d0, d1) {
   const solid = kit.rotZ(kit.rot(kit.ext(cs, 0, d1 - d0), 90, 0, 0), 90);
   return kit.move(solid, d0, 0, 0);
 }
 
 /** 2D (depth, z) profile extruded along the wall from a0 to a1, in wall frame. */
-function depthProfile(kit, cs, a0, a1) {
+export function depthProfile(kit, cs, a0, a1) {
   return kit.move(kit.rot(kit.ext(cs, 0, a1 - a0), 90, 0, 0), 0, a1, 0);
 }
 
@@ -230,7 +231,13 @@ export function buildBinSegment(kit, ctx) {
   let tabInfo = null;
 
   // --- dividers ---
-  const dh = Math.min(floorTop + ((H - floorTop) * eff.dividerPct) / 100, topInner);
+  const sliding = eff.lid === "sliding" ? slidingLevels(eff) : null;
+  // Dividers must not reach into the path of a sliding lid.
+  const dh = Math.min(
+    floorTop + ((H - floorTop) * eff.dividerPct) / 100,
+    topInner,
+    sliding ? sliding.ledgeTop : Infinity,
+  );
   const dt = Math.max(wall, DIVIDER_MIN);
   const inner0 = tEdge - 0.01;
   const isCut = (v, a, b, len) =>
@@ -251,7 +258,7 @@ export function buildBinSegment(kit, ctx) {
   }
 
   // --- label tab and text ---
-  const tab = eff.label !== "none" ? tabDepth(eff, { w: ow, d: od }) : 0;
+  const tab = eff.label !== "none" && !hidesLabelTab(eff.lid) ? tabDepth(eff, { w: ow, d: od }) : 0;
   const lw = eff.labelWall;
   const lLen = wallLength(lw, W, D);
   if (tab > 0) {
@@ -358,6 +365,69 @@ export function buildBinSegment(kit, ctx) {
         blocked[wname].push([c - width / 2 - 3, c + width / 2 + 3]);
       }
     }
+  }
+
+  // Sliding lid: two shelves (ledge below, guide above) along the walls parallel to the slide, and the
+  // entry wall cut down so the lid can be pushed in.
+  if (sliding) {
+    const alongY = eff.lidSide === "front" || eff.lidSide === "back";
+    const shelf = (z0, z1) =>
+      alongY
+        ? [
+            kit.box(tEdge - 0.01, tEdge + RAIL.depth, gap, D - gap, z0, z1),
+            kit.box(W - tEdge - RAIL.depth, W - tEdge + 0.01, gap, D - gap, z0, z1),
+          ]
+        : [
+            kit.box(gap, W - gap, tEdge - 0.01, tEdge + RAIL.depth, z0, z1),
+            kit.box(gap, W - gap, D - tEdge - RAIL.depth, D - tEdge + 0.01, z0, z1),
+          ];
+    adds.push(
+      ...shelf(sliding.ledgeBottom, sliding.ledgeTop),
+      ...shelf(sliding.guideBottom, sliding.guideTop),
+    );
+    const z0 = sliding.ledgeTop;
+    const z1 = H + 1;
+    // The slot also clears the rounded inside corners at the entry end, which would catch the lid.
+    const reach = tEdge + Math.max(BIN_R - wall, 0.1) + 0.3;
+    const slot = {
+      front: () => kit.box(tEdge, W - tEdge, -1, reach, z0, z1),
+      back: () => kit.box(tEdge, W - tEdge, D - reach, D + 1, z0, z1),
+      left: () => kit.box(-1, reach, tEdge, D - tEdge, z0, z1),
+      right: () => kit.box(W - reach, W + 1, tEdge, D - tEdge, z0, z1),
+    }[eff.lidSide];
+    cuts.push(slot());
+  }
+
+  // Hinged lid: two posts inside the hinge wall with a pin hole through them.
+  if (eff.lid === "hinged") {
+    const wall_ = eff.lidSide;
+    const hinge = hingeSpec(eff, { gap, wall, H, L: wallLength(wall_, W, D) });
+    for (const [a0, a1] of hinge.posts) {
+      adds.push(
+        toWall(
+          kit,
+          kit.box(
+            hinge.innerFace - 0.01,
+            hinge.innerFace + hinge.postDepth,
+            a0,
+            a1,
+            floorTop - 0.01,
+            H,
+          ),
+          wall_,
+          W,
+          D,
+        ),
+      );
+    }
+    const [s0, s1] = hinge.span;
+    const hole = kit.move(
+      kit.rot(kit.cyl(hinge.holeR, s1 - s0 + 2), -90, 0, 0),
+      hinge.uAxis,
+      s0 - 1,
+      hinge.zAxis,
+    );
+    cuts.push(toWall(kit, hole, wall_, W, D));
   }
 
   // A foot cut by the bin's edge inside a cell (half bins) gets a 45° chamfer at that outer edge.
@@ -594,5 +664,30 @@ export function buildBinSegment(kit, ctx) {
   if (cuts.length) main = kit.sub(main, ...cuts);
 
   const inlay = inlayParts.length ? kit.inter(kit.union(inlayParts), region(-1, top + 5)) : null;
-  return { main, inlay, keys, magnets, noOpenings };
+  // What a lid needs to know: the bin's frame, and the interior features (dividers, label tab, text)
+  // that a lid plug has to stay clear of.
+  const frame = {
+    W,
+    D,
+    gap,
+    ow,
+    od,
+    cx,
+    cy,
+    H,
+    top,
+    topInner,
+    wall,
+    floorTop,
+    bounds: { bx0, bx1, by0, by1 },
+  };
+  return {
+    main,
+    inlay,
+    keys,
+    magnets,
+    noOpenings,
+    frame,
+    interior: adds.length ? kit.union(adds) : null,
+  };
 }

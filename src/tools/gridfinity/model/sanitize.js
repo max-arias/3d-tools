@@ -30,6 +30,11 @@ const BIN_RULES = {
   floorSeam: (v, d) => oneOf(v, ["butt", "lap"], d),
   seamJoint: (v, d) => oneOf(v, ["none", "hkey", "magnets"], d),
   wallPattern: (v, d) => oneOf(v, ["solid", "honeycomb", "slots"], d),
+  lid: (v, d) => oneOf(v, ["none", "dropin", "stackable", "sliding", "hinged"], d),
+  lidThickness: (v, d) => num(v, 1.2, 4, d),
+  lidFit: (v, d) => num(v, 0.1, 0.6, d),
+  lidHandle: (v, d) => oneOf(v, ["none", "dip", "tab", "knob"], d),
+  lidSide: (v, d) => oneOf(v, WALLS, d),
 };
 const GRAB_RULES = {
   notch: bool,
