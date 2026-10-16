@@ -11,6 +11,12 @@ const tools = [
     desc: "Measure your drawer, pick your printer, and get a split baseplate with bins that are ready to print.",
     icon: "grid",
   },
+  {
+    href: "/tapas/",
+    name: "Tapas (Argentina)",
+    desc: "Diseñá cubretapas, cubreteclas y marcos para llaves de luz argentinas. Previsualizá y descargá el STL o 3MF.",
+    icon: "cube",
+  },
   { name: "More coming", desc: "Other small tools for printing will live here.", icon: "cube" },
 ];
 
