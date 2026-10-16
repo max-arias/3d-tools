@@ -141,11 +141,6 @@ select {
 .segmented button:last-child {
   border-radius: 0 var(--radius) var(--radius) 0;
 }
-button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
 .stepper {
   display: inline-flex;
   align-items: center;
@@ -219,7 +214,7 @@ button[aria-pressed="true"] {
   border-radius: 50%;
 }
 .swatch[aria-pressed="true"] {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
 .help summary {
@@ -295,7 +290,11 @@ button[aria-pressed="true"] {
   top: 48px;
   right: 12px;
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
 }
 .walls .swatch {
   width: 20px;

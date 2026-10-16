@@ -50,7 +50,7 @@ export function defaultProject() {
     pattern: { id: "none", mode: "inlay", scale: 10, weight: 0.5, rot: 0, margin: 2.5, depth: 0.8 },
     color: "#e9e4d8",
     color2: "#c9442f",
-    wall: "#b9c4cc",
+    wall: "#ece7dc",
   };
 }
 

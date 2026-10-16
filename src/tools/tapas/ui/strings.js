@@ -170,6 +170,9 @@ addStrings("es", {
   "p.mates": "Mates",
   "i.mate": "Mate",
   "i.bandoneon": "Bandoneón",
+  shotNear: "Cerca",
+  shotMid: "Medio",
+  shotHall: "Pasillo",
 });
 
 addStrings("en", {
@@ -340,4 +343,7 @@ addStrings("en", {
   "p.mates": "Mate gourds",
   "i.mate": "Mate",
   "i.bandoneon": "Bandoneón",
+  shotNear: "Close",
+  shotMid: "Medium",
+  shotHall: "Hallway",
 });
