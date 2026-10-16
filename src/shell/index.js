@@ -17,6 +17,12 @@ const tools = [
     desc: "Diseñá cubretapas, cubreteclas y marcos para llaves de luz argentinas. Previsualizá y descargá el STL o 3MF.",
     icon: "cube",
   },
+  {
+    href: "/frames/",
+    name: "Frames",
+    desc: "Picture frames in any size, profile and shape, with mat, back, stand or magnets. Big frames are split to your bed. Download the STL or 3MF.",
+    icon: "cube",
+  },
   { name: "More coming", desc: "Other small tools for printing will live here.", icon: "cube" },
 ];
 

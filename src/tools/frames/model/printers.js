@@ -1,0 +1,53 @@
+// Printer presets. `bambu` marks presets that get Bambu Studio project metadata in the 3MF.
+export const PRINTERS = [
+  {
+    id: "bambu-p1s",
+    name: "Bambu Lab P1S / P1P / X1C / X1E",
+    short: "P1S",
+    x: 256,
+    y: 256,
+    z: 256,
+    bambu: true,
+  },
+  { id: "bambu-p2s", name: "Bambu Lab P2S", short: "P2S", x: 256, y: 256, z: 256, bambu: true },
+  { id: "bambu-a1", name: "Bambu Lab A1", short: "A1", x: 256, y: 256, z: 256, bambu: true },
+  {
+    id: "bambu-a1mini",
+    name: "Bambu Lab A1 mini",
+    short: "A1 mini",
+    x: 180,
+    y: 180,
+    z: 180,
+    bambu: true,
+  },
+  {
+    id: "bambu-h2d",
+    name: "Bambu Lab H2D (one nozzle)",
+    short: "H2D",
+    x: 325,
+    y: 320,
+    z: 325,
+    bambu: true,
+  },
+  {
+    id: "bambu-x2d",
+    name: "Bambu Lab X2D (one nozzle)",
+    short: "X2D",
+    x: 256,
+    y: 256,
+    z: 260,
+    bambu: true,
+  },
+  { id: "prusa-core-one", name: "Prusa Core One", short: "Core One", x: 250, y: 220, z: 270 },
+  { id: "prusa-mk4", name: "Prusa MK4 / MK4S", short: "MK4", x: 250, y: 210, z: 220 },
+  { id: "prusa-mk3s", name: "Prusa MK3S+", short: "MK3S", x: 250, y: 210, z: 210 },
+  { id: "prusa-mini", name: "Prusa MINI+", short: "MINI", x: 180, y: 180, z: 180 },
+  { id: "prusa-xl", name: "Prusa XL", short: "XL", x: 360, y: 360, z: 360 },
+  { id: "ender3", name: "Creality Ender-3", short: "Ender-3", x: 220, y: 220, z: 250 },
+  { id: "k1", name: "Creality K1", short: "K1", x: 220, y: 220, z: 250 },
+  { id: "k1max", name: "Creality K1 Max", short: "K1 Max", x: 300, y: 300, z: 300 },
+  { id: "neptune4", name: "Elegoo Neptune 4", short: "Neptune 4", x: 225, y: 225, z: 265 },
+  { id: "voron350", name: "Voron 350", short: "Voron 350", x: 350, y: 350, z: 340 },
+];
+
+export const presetById = (id) => PRINTERS.find((p) => p.id === id);
