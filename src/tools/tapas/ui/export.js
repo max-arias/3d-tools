@@ -1,3 +1,4 @@
+import { run } from "../lib/client.js";
 import { toStl } from "../lib/stl.js";
 import { build3mf, shelfPack } from "../lib/threemf.js";
 
@@ -23,4 +24,9 @@ export function download3mf(part, copies, bed) {
     bodies: part.bodies.map((b) => ({ name: b.name, mesh: b.mesh })),
   }));
   download(build3mf({ items, bed, title: "Tapas" }), `${part.name}_x${copies}.3mf`, "model/3mf");
+}
+
+export async function downloadCoupon(project) {
+  const strip = await run("coupon", project);
+  downloadStl(strip);
 }

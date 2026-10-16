@@ -155,8 +155,9 @@ export function createStage() {
   }
   function apply() {
     const { stock: showStockNow, mode } = view.get();
+    const prod = project.get().product;
     cover.visible = !showStockNow;
-    stock.visible = showStockNow;
+    stock.visible = prod !== "keycap" && (showStockNow || prod === "frame");
     wallPick.style.display = mode === "wall" ? "" : "none";
   }
 
@@ -171,22 +172,25 @@ export function createStage() {
         ),
       );
     tools.replaceChildren(
-      seg(
-        [
-          ["3d", t("view3d")],
-          ["wall", t("viewWall")],
-        ],
-        v.mode,
-        (mode) => (view.set({ mode }), frame(), paintTools()),
-      ),
-      seg(
-        [
-          [false, t("withCover")],
-          [true, t("original")],
-        ],
-        v.stock,
-        (s) => (view.set({ stock: s }), apply(), paintTools()),
-      ),
+      ...[
+        seg(
+          [
+            ["3d", t("view3d")],
+            ["wall", t("viewWall")],
+          ],
+          v.mode,
+          (mode) => (view.set({ mode }), frame(), paintTools()),
+        ),
+        project.get().product !== "keycap" &&
+          seg(
+            [
+              [false, t("withCover")],
+              [true, t("original")],
+            ],
+            v.stock,
+            (s) => (view.set({ stock: s }), apply(), paintTools()),
+          ),
+      ].filter(Boolean),
     );
     const p = project.get();
     wallPick.replaceChildren(
@@ -205,9 +209,15 @@ export function createStage() {
     );
   }
 
-  project.subscribe(() => {
+  let lastProduct = project.get().product;
+  project.subscribe((p) => {
     paintColors();
-    if (stock.visible || view.get().stock) showStock(project.get());
+    showStock(p);
+    if (p.product !== lastProduct) {
+      lastProduct = p.product;
+      paintTools();
+    }
+    apply();
   });
 
   const paintStatus = () => {

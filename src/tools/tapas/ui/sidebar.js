@@ -3,10 +3,11 @@ import { numField, row, segmented, slider, stepper } from "../../../shell/widget
 import { langStore, t } from "../lib/i18n.js";
 import { MODULE_IDS } from "../model/modules.js";
 import { PRESETS, presetById } from "../model/presets.js";
-import { PATTERN_MODES, usedSlots } from "../model/project.js";
+import { ICON_IDS } from "../geom/icons.js";
+import { PATTERN_MODES, PRODUCTS, usedSlots } from "../model/project.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
 import { SHAPE_IDS } from "../geom/shapes.js";
-import { download3mf, downloadStl, fits } from "./export.js";
+import { download3mf, downloadCoupon, downloadStl, fits } from "./export.js";
 import { project, result, update, view } from "./state.js";
 
 const SWATCHES = [
@@ -55,29 +56,32 @@ export function createSidebar() {
   const root = h("aside", { class: "side" });
   let presetSelect;
 
-  const productSection = () =>
-    section(
+  const productSection = () => {
+    const cur = project.get().product;
+    return section(
       "product",
       t("product"),
       h(
         "div",
         { class: "cards" },
-        h(
-          "button",
-          { class: "card", "aria-pressed": "true" },
-          h("b", {}, t("overlay")),
-          h("span", { class: "muted" }, t("overlayDesc")),
-        ),
-        ["tapa", "keycap", "frame"].map((k) =>
+        PRODUCTS.map((k) =>
           h(
             "button",
-            { class: "card", disabled: true },
+            {
+              class: "card",
+              "aria-pressed": String(cur === k),
+              onclick: () => {
+                update((q) => (q.product = k));
+                paint();
+              },
+            },
             h("b", {}, t(k)),
-            h("small", {}, t("soon")),
+            h("span", { class: "muted" }, t(`${k}Desc`)),
           ),
         ),
       ),
     );
+  };
 
   const measuresSection = () => {
     const p = project.get();
@@ -402,9 +406,158 @@ export function createSidebar() {
     );
   };
 
+  const tapaSection = () => {
+    const p = project.get();
+    const f = (label, key, min, max, step) =>
+      row(
+        label,
+        numField({
+          value: p.tapa[key],
+          min,
+          max,
+          step,
+          unit: "mm",
+          onChange: (v) => update((q) => (q.tapa[key] = v)),
+        }),
+      );
+    return section(
+      "tapaSpec",
+      t("tapaSpec"),
+      h("p", { class: "hint muted" }, t("tapaHint")),
+      f(t("boxW"), "boxW", 30, 200, 0.5),
+      f(t("boxH"), "boxH", 30, 250, 0.5),
+      f(t("tClearance"), "clearance", 0, 1, 0.05),
+      f(t("tFace"), "face", 1.6, 8, 0.2),
+      f(t("tSkirt"), "skirt", 2, 20, 0.5),
+      f(t("tWall"), "wall", 1.2, 5, 0.2),
+      f(t("tBump"), "bump", 0, 1.2, 0.1),
+      f(t("tWin"), "winMargin", -1, 2, 0.1),
+    );
+  };
+
+  const frameSection = () => {
+    const p = project.get();
+    return section(
+      "frameSpec",
+      t("frameSpec"),
+      row(
+        t("frameH"),
+        numField({
+          value: p.frame.h,
+          min: 2,
+          max: 30,
+          step: 0.5,
+          unit: "mm",
+          onChange: (v) => update((q) => (q.frame.h = v)),
+        }),
+      ),
+    );
+  };
+
+  const keycapSection = () => {
+    const k = project.get().keycap;
+    const f = (label, key, min, max, step) =>
+      row(
+        label,
+        numField({
+          value: k[key],
+          min,
+          max,
+          step,
+          unit: "mm",
+          onChange: (v) => update((q) => (q.keycap[key] = v)),
+        }),
+      );
+    const icon = k.icon !== "none";
+    return section(
+      "keycap",
+      t("keycapSpec"),
+      h("p", { class: "hint muted" }, t("keycapHint")),
+      f(t("kW"), "w", 8, 60, 0.5),
+      f(t("kL"), "l", 8, 80, 0.5),
+      f(t("kH"), "h", 2, 20, 0.5),
+      f(t("kR"), "r", 0, 15, 0.5),
+      f(t("kClear"), "clearance", 0, 1, 0.05),
+      f(t("kWall"), "wall", 1.2, 4, 0.2),
+      f(t("kFace"), "face", 1, 5, 0.2),
+      row(
+        t("kStyle"),
+        segmented({
+          value: k.style,
+          options: [
+            { value: "bevel", label: t("kBevel") },
+            { value: "flat", label: t("kFlat") },
+          ],
+          onChange: (v) => update((q) => (q.keycap.style = v)),
+        }),
+      ),
+      h("b", { class: "sub" }, t("icon")),
+      h(
+        "div",
+        { class: "chips" },
+        ["none", ...ICON_IDS].map((id) =>
+          h(
+            "button",
+            {
+              class: "chip",
+              "aria-pressed": String(k.icon === id),
+              onclick: () => {
+                update((q) => (q.keycap.icon = id));
+                paint();
+              },
+            },
+            t(`i.${id}`),
+          ),
+        ),
+      ),
+      k.icon === "text" &&
+        row(
+          t("kText"),
+          h("input", {
+            type: "text",
+            maxLength: 6,
+            value: k.text,
+            "aria-label": t("kText"),
+            oninput: (e) => update((q) => (q.keycap.text = e.target.value)),
+          }),
+        ),
+      icon && [
+        h(
+          "div",
+          { class: "modes" },
+          PATTERN_MODES.map((m) =>
+            h(
+              "button",
+              {
+                class: "card",
+                "aria-pressed": String(k.iconMode === m),
+                onclick: () => {
+                  update((q) => (q.keycap.iconMode = m));
+                  paint();
+                },
+              },
+              h("b", {}, t(`pm.${m}`)),
+              h("span", { class: "muted" }, t(`pm.${m}.d`)),
+            ),
+          ),
+        ),
+        f(t("kIconSize"), "iconSize", 4, 40, 0.5),
+        f(t("pDepth"), "iconDepth", 0.4, 1.6, 0.2),
+      ],
+    );
+  };
+
   const colorSection = () => {
     const p = project.get();
-    const two = p.pattern.id !== "none" && ["inlay", "raised"].includes(p.pattern.mode);
+    const motif =
+      p.product === "keycap"
+        ? p.keycap.icon !== "none"
+          ? p.keycap.iconMode
+          : "none"
+        : p.pattern.id !== "none"
+          ? p.pattern.mode
+          : "none";
+    const two = ["inlay", "raised"].includes(motif);
     const swatches = (key) =>
       h(
         "div",
@@ -494,16 +647,27 @@ export function createSidebar() {
           t("threemf"),
         ),
       ),
+      p.product !== "keycap" &&
+        h(
+          "div",
+          { class: "actions" },
+          h("button", { onclick: () => downloadCoupon(p) }, t("coupon")),
+          h("small", { class: "muted" }, t("couponHint")),
+        ),
     );
   };
 
   function paint() {
+    const product = project.get().product;
+    const by = {
+      overlay: [measuresSection, modulesSection, shapeSection, designSection],
+      tapa: [measuresSection, tapaSection, modulesSection, designSection],
+      frame: [measuresSection, frameSection, shapeSection, designSection],
+      keycap: [keycapSection],
+    };
     const body = [
       productSection(),
-      measuresSection(),
-      modulesSection(),
-      shapeSection(),
-      designSection(),
+      ...by[product].map((fn) => fn()),
       colorSection(),
       exportSection(),
     ];

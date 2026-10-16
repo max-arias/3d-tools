@@ -1,6 +1,7 @@
 import { MODULES } from "../model/modules.js";
 import { usedSlots } from "../model/project.js";
 import { buildPattern } from "./patterns.js";
+import { applyRelief, packResult } from "./relief.js";
 import { fitOutline } from "./shapes.js";
 
 /** Window centres [{ x, y, type }] in plate coordinates (x across, y along the module row). */
@@ -23,31 +24,15 @@ export function layoutModules(p) {
   return out;
 }
 
-function windowShape(kit, win, m) {
+export function windowShape(kit, win, m) {
   return win.kind === "circle"
     ? kit.circle(win.d / 2 + m, 0, 0, 48)
     : kit.rrect(win.x + 2 * m, win.y + 2 * m, win.r + m);
 }
 
-const concat = (meshes) => {
-  const n = meshes.reduce((a, m) => a + m.positions.length, 0);
-  const positions = new Float32Array(n);
-  const indices = new Uint32Array(meshes.reduce((a, m) => a + m.indices.length, 0));
-  let po = 0;
-  let io = 0;
-  for (const m of meshes) {
-    positions.set(m.positions, po);
-    for (let i = 0; i < m.indices.length; i++) indices[io + i] = m.indices[i] + po / 3;
-    po += m.positions.length;
-    io += m.indices.length;
-  }
-  return { positions, indices };
-};
-
 /**
  * Overlay that slips over the existing tapa. Printed face down: face at z = 0, open side up.
- * Bodies share one coordinate system (so they can be printed as colours of one object):
- * [{ name, role: "main" | "pattern", mesh, volume }].
+ * Bodies share one coordinate system so they can be printed as colours of one object.
  */
 export function generateOverlay(kit, p) {
   const { plate, overlay: o, mods, pattern: pat } = p;
@@ -95,38 +80,25 @@ export function generateOverlay(kit, p) {
       area = kit.inter2d(area, kit.rrect(pocketW - 0.8, pocketH - 0.8, Math.max(0, pocketR - 0.4)));
     if (keepOut.length) area = kit.csSub(area, keepOut);
     const cs = buildPattern(kit, pat, area, outline);
-    if (cs) {
-      const d = Math.min(pat.depth, o.face);
-      if (pat.mode === "raised") patternBody = kit.ext(cs, 0, lift);
-      else if (pat.mode === "inlay") {
-        patternBody = kit.ext(cs, 0, d);
-        body = kit.sub(body, kit.ext(cs, -1, d));
-      } else if (pat.mode === "engraved") body = kit.sub(body, kit.ext(cs, -1, d));
-      else body = kit.sub(body, kit.ext(cs, -1, lift + o.face));
-    }
+    if (cs)
+      ({ body, patternBody } = applyRelief(kit, body, cs, {
+        mode: pat.mode,
+        depth: pat.depth,
+        face: o.face,
+        lift,
+      }));
   }
 
-  const bb = outline.bounds();
-  const origin = [bb.min[0], bb.min[1], 0];
-  const main = kit.export(body, origin);
-  if (!main.valid) warnings.push("invalidMesh");
-  const bodies = [{ name: "cubretapa", role: "main", mesh: main.mesh, volume: main.volume }];
-  if (patternBody) {
-    const pb = kit.export(patternBody, origin);
-    if (!pb.valid) warnings.push("invalidMesh");
-    bodies.push({ name: "patron", role: "pattern", mesh: pb.mesh, volume: pb.volume });
-  }
   return {
     kind: "overlay",
-    name: "cubretapa",
-    bodies,
-    mesh: bodies.length > 1 ? concat(bodies.map((b) => b.mesh)) : main.mesh,
-    size: [bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], total],
-    center: [-bb.min[0], -bb.min[1]],
-    triangles: bodies.reduce((a, b) => a + b.mesh.indices.length / 3, 0),
-    volume: bodies.reduce((a, b) => a + b.volume, 0),
-    valid: main.valid,
-    pocket: [pocketW, pocketH, depth],
-    warnings: [...new Set(warnings)],
+    ...packResult(kit, {
+      name: "cubretapa",
+      body,
+      patternBody,
+      bounds: outline.bounds(),
+      total,
+      pocket: [pocketW, pocketH, depth],
+      warnings,
+    }),
   };
 }

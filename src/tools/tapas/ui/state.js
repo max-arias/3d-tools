@@ -26,7 +26,7 @@ let timer;
 function generate() {
   const mine = ++seq;
   result.set({ status: "loading" });
-  run("overlay", project.get()).then(
+  run("generate", project.get()).then(
     (part) => mine === seq && result.set({ status: "ok", part, error: null }),
     (error) => mine === seq && result.set({ status: "error", error: error.message }),
   );

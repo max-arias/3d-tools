@@ -60,6 +60,25 @@ for (const [name, viewport] of [
   await page.screenshot({ path: `${out}/tapas-${name}-stock.png` });
   await page.click('.viewtools button:has-text("Con cubretapa")');
   await page.click('.viewtools button:has-text("3D")');
+  for (const [card, probe] of [
+    ["Cubreteclas", "Cubretecla"],
+    ["Marco", "Altura del marco"],
+    ["Tapa de reemplazo", "Encastre en el bastidor"],
+  ]) {
+    await page.click(`.cards .card:has-text("${card}")`);
+    await page.waitForFunction(
+      () =>
+        /\d+\.\d × /.test(document.querySelector(".status")?.textContent ?? "") &&
+        !document.querySelector(".busy")?.textContent,
+      null,
+      { timeout: 30000 },
+    );
+    check(await page.isVisible(`text=${probe}`), `${name}: ${card} section`);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${out}/tapas-${name}-${card.split(" ")[0]}.png` });
+  }
+  await page.click('.cards .card:has-text("Cubretapa")');
+  await page.waitForTimeout(800);
   await page.click('button:has-text("EN")');
   check(await page.isVisible("text=Download STL"), `${name}: English toggle`);
   await page.click('button:has-text("ES")');

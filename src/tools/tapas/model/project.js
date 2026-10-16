@@ -3,8 +3,10 @@ import { MODULES, MODULE_IDS } from "./modules.js";
 import { PRESETS, presetById } from "./presets.js";
 import { SHAPE_IDS } from "../geom/shapes.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
+import { ICON_IDS } from "../geom/icons.js";
 
 export const PATTERN_MODES = ["inlay", "engraved", "cutthrough", "raised"];
+export const PRODUCTS = ["overlay", "tapa", "keycap", "frame"];
 
 const STORE_KEY = "3dtools.tapas.project";
 
@@ -19,6 +21,32 @@ export function defaultProject() {
     groups: [["tecla", "tecla", "tecla"]],
     overlay: { shape: "rounded", corner: 6, wall: 2.4, face: 2, clearance: 0.3 },
     printer: { x: 256, y: 256 },
+    frame: { h: 8 },
+    tapa: {
+      face: 3,
+      skirt: 6,
+      wall: 2,
+      boxW: 71,
+      boxH: 114,
+      clearance: 0.25,
+      bump: 0.5,
+      winMargin: 0,
+    },
+    keycap: {
+      w: 19,
+      l: 38,
+      h: 5,
+      r: 2.5,
+      wall: 1.6,
+      face: 1.6,
+      clearance: 0.25,
+      style: "bevel",
+      icon: "none",
+      text: "1",
+      iconMode: "inlay",
+      iconSize: 12,
+      iconDepth: 0.6,
+    },
     pattern: { id: "none", mode: "inlay", scale: 10, weight: 0.5, rot: 0, margin: 2.5, depth: 0.8 },
     color: "#e9e4d8",
     color2: "#c9442f",
@@ -47,9 +75,12 @@ export function sanitize(raw) {
       .map((m) => oneOf(m, MODULE_IDS, "tecla"))
       .slice(0, 6),
   );
+  const fr = r.frame ?? {};
+  const tp = r.tapa ?? {};
+  const kc = r.keycap ?? {};
   return {
     v: 1,
-    product: "overlay",
+    product: oneOf(r.product, PRODUCTS, "overlay"),
     preset: oneOf(
       r.preset,
       PRESETS.map((p) => p.id),
@@ -77,6 +108,32 @@ export function sanitize(raw) {
     printer: {
       x: num(r.printer?.x, 50, 1000, d.printer.x),
       y: num(r.printer?.y, 50, 1000, d.printer.y),
+    },
+    frame: { h: num(fr.h, 2, 30, d.frame.h) },
+    tapa: {
+      face: num(tp.face, 1.6, 8, d.tapa.face),
+      skirt: num(tp.skirt, 2, 20, d.tapa.skirt),
+      wall: num(tp.wall, 1.2, 5, d.tapa.wall),
+      boxW: num(tp.boxW, 30, 200, d.tapa.boxW),
+      boxH: num(tp.boxH, 30, 250, d.tapa.boxH),
+      clearance: num(tp.clearance, 0, 1, d.tapa.clearance),
+      bump: num(tp.bump, 0, 1.2, d.tapa.bump),
+      winMargin: num(tp.winMargin, -1, 2, d.tapa.winMargin),
+    },
+    keycap: {
+      w: num(kc.w, 8, 60, d.keycap.w),
+      l: num(kc.l, 8, 80, d.keycap.l),
+      h: num(kc.h, 2, 20, d.keycap.h),
+      r: num(kc.r, 0, 15, d.keycap.r),
+      wall: num(kc.wall, 1.2, 4, d.keycap.wall),
+      face: num(kc.face, 1, 5, d.keycap.face),
+      clearance: num(kc.clearance, 0, 1, d.keycap.clearance),
+      style: oneOf(kc.style, ["flat", "bevel"], "bevel"),
+      icon: oneOf(kc.icon, ["none", ...ICON_IDS], "none"),
+      text: String(kc.text ?? d.keycap.text).slice(0, 6),
+      iconMode: oneOf(kc.iconMode, PATTERN_MODES, "inlay"),
+      iconSize: num(kc.iconSize, 4, 40, d.keycap.iconSize),
+      iconDepth: num(kc.iconDepth, 0.4, 1.6, d.keycap.iconDepth),
     },
     pattern: {
       id: oneOf(r.pattern?.id, ["none", ...PATTERN_IDS], "none"),
