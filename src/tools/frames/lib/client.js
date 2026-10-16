@@ -14,11 +14,11 @@ function start() {
   };
 }
 
-export function run(job, project) {
+export function run(job, project, extra) {
   if (!worker) start();
   const id = nextId++;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    worker.postMessage({ id, job, project });
+    worker.postMessage({ id, job, project, extra });
   });
 }

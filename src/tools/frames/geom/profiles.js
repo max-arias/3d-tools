@@ -112,3 +112,6 @@ export function crossSection(id, { w, hgt, rd, ru }) {
   const poly = [[ru, 0], [w, 0], ...top.slice().reverse(), [0, rd], [ru, rd]];
   return poly;
 }
+
+/** Index range [first, last] of the top-face points inside a `crossSection` polygon. */
+export const topRange = (id) => [2, 2 + PROFILES[id].pts.length - 1];

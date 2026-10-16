@@ -9,6 +9,7 @@ export function createKit(wasm) {
   const kit = {
     Manifold,
     CrossSection,
+    Mesh,
     own,
     free() {
       for (const o of owned) {
@@ -65,6 +66,10 @@ export function createKit(wasm) {
     mirrorX: (m) => own(m.mirror([1, 0, 0])),
     mirrorY: (m) => own(m.mirror([0, 1, 0])),
     mirrorZ: (m) => own(m.mirror([0, 0, 1])),
+    /** Offset a CrossSection outward (negative: inward). Miter keeps sharp corners sharp. */
+    grow: (cs, d, join = "Miter") => own(cs.offset(d, join, 4, SEGMENTS)),
+    /** Orient a 2D profile sketched as (a, b) with extrusion c: map to (c, a, b) = (x, y, z). */
+    cabToXyz: (m) => own(m.transform([0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1])),
     inter2d: (a, b) => own(CrossSection.intersection([a, b])),
     hull2d: (...list) => own(CrossSection.hull(list.flat())),
 
@@ -72,8 +77,8 @@ export function createKit(wasm) {
      * Sweep a closed 2D profile [[u, z], ...] (counter-clockwise, u = distance outward from the
      * path, z = height) around a closed counter-clockwise convex-ish path [[x, y], ...].
      * Each corner is mitred, so a sharp rectangle gets true 45 degree joints.
-     * `maxSeg` subdivides long edges (for textures); `displace(ring, k, x, y, z)` may return a
-     * z offset per vertex. Returns a Manifold.
+     * `maxSeg` subdivides long edges (for textures); `displace(s, j, x, y, z)` may return a z
+     * offset per vertex, where `s` is the arc length along the path. Returns a Manifold.
      */
     sweepLoop(profile, path, { maxSeg = 0, displace = null } = {}) {
       let pts = path;
@@ -89,6 +94,9 @@ export function createKit(wasm) {
       }
       const N = pts.length;
       const M = profile.length;
+      const arc = [0];
+      for (let i = 1; i < N; i++)
+        arc.push(arc[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
       const normal = (a, b) => {
         const dx = b[0] - a[0];
         const dy = b[1] - a[1];
@@ -107,7 +115,7 @@ export function createKit(wasm) {
           const o = (i * M + j) * 3;
           verts[o] = pts[i][0] + u * mx;
           verts[o + 1] = pts[i][1] + u * my;
-          verts[o + 2] = z + (displace ? displace(i, j, verts[o], verts[o + 1], z) : 0);
+          verts[o + 2] = z + (displace ? displace(arc[i], j, verts[o], verts[o + 1], z) : 0);
         }
       }
       const tris = [];
