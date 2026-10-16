@@ -21,8 +21,10 @@ export function layoutModules(p) {
     return out;
   }
   const { pitch, slots } = p.mods;
+  // With one window for all modules the columns sit side by side, one window width apart.
+  const colW = p.window === "single" ? p.mods.winW : p.plate.w / groups;
   p.groups.forEach((group, g) => {
-    const x = (g - (groups - 1) / 2) * (p.plate.w / groups);
+    const x = (g - (groups - 1) / 2) * colW;
     let cursor = 0;
     const total = usedSlots(group);
     const rowLen = Math.max(total, slots) * pitch;
@@ -43,8 +45,25 @@ export function layoutModules(p) {
  */
 export function facePieces(p) {
   const flat = p.style === "flat";
+  const groups = p.groups.length;
   const placed = layoutModules(p);
   const windows = [];
+  if (!flat && p.window === "single") {
+    // Most modular plates (Cambre, Jeluz, Sica, Kalop) have one window for all their modules, centred
+    // on the plate: 50.4 mm wide per column and 19 mm tall per module on Siglo XXII.
+    const rows = Math.max(p.mods.slots, ...p.groups.map((g) => usedSlots(g)));
+    return {
+      windows: [
+        {
+          x: 0,
+          y: 0,
+          type: "ventana",
+          win: { kind: "rect", x: p.mods.winW * groups, y: rows * p.mods.pitch, r: 1 },
+        },
+      ],
+      slits: [],
+    };
+  }
   for (const m of placed) {
     const def = MODULES[m.type];
     if (!def.win || (flat && def.key)) continue; // on a flat plate the key is covered, not exposed

@@ -1,7 +1,10 @@
-// Module types. `span` = how many 22.5 mm module slots it takes along the bastidor (1.5 is a half
-// teclon), `win` = the opening in the overlay (across x along, a circle diameter, or the socket
-// slots). `key` marks the types that are pressed; on a flat plate they have no opening of their
-// own. Values are approximate except where TDT-47 says otherwise.
+// Module types. `span` = how many module slots it takes along the bastidor (1.5 is a half teclon);
+// a slot is `mods.pitch` mm tall (19 mm on Cambre Siglo XXII, from Cambre's technical drawings).
+// `win` = this module's own opening, used only when a plate has one window per module (most plates
+// have a single window for all modules, see project `window`): across x along, a circle
+// diameter, or the socket slots. `key` marks the types that are pressed; on a flat plate they have
+// no opening of their own. Sizes here are approximate (TDT-32); the module pitch and window width
+// that matter most live in the presets.
 //
 // Socket slots follow the Argentine face (IRAM 2071 gauge table, checked against Macroled's Milan
 // pictures): line and neutral slots 7.92 mm from the midpoint along 30 degree axes (13.7 mm apart),
@@ -15,14 +18,14 @@ export const SOCKET_SLOTS = [
 ];
 
 export const MODULES = {
-  tecla: { span: 1, key: true, win: { kind: "rect", x: 42, y: 21, r: 1.5 } },
-  teclon: { span: 3, key: true, win: { kind: "rect", x: 42, y: 66, r: 1.5 } },
-  teclonMedio: { span: 1.5, key: true, win: { kind: "rect", x: 42, y: 32, r: 1.5 } },
-  toma: { span: 2, win: { kind: "circle", d: 38 } },
+  tecla: { span: 1, key: true, win: { kind: "rect", x: 50.4, y: 17, r: 1 } },
+  teclon: { span: 3, key: true, win: { kind: "rect", x: 50.4, y: 55, r: 1 } },
+  teclonMedio: { span: 1.5, key: true, win: { kind: "rect", x: 50.4, y: 26.5, r: 1 } },
+  toma: { span: 2, win: { kind: "circle", d: 36 } },
   tomaRanuras: { span: 2, win: { kind: "slots", slots: SOCKET_SLOTS } },
-  usb: { span: 1, win: { kind: "rect", x: 36, y: 19, r: 1.5 } },
-  rj45: { span: 1, win: { kind: "rect", x: 30, y: 19, r: 1 } },
-  perilla: { span: 1, win: { kind: "circle", d: 19 } },
+  usb: { span: 1, win: { kind: "rect", x: 36, y: 15, r: 1 } },
+  rj45: { span: 1, win: { kind: "rect", x: 30, y: 15, r: 1 } },
+  perilla: { span: 1, win: { kind: "circle", d: 15 } },
   ciego: { span: 1, win: null },
 };
 export const MODULE_IDS = Object.keys(MODULES);

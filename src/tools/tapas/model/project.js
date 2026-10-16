@@ -11,14 +11,15 @@ export const PRODUCTS = ["overlay", "tapa", "keycap", "frame"];
 const STORE_KEY = "3dtools.tapas.project";
 
 export function defaultProject() {
-  const p = presetById("cambre-xxi");
+  const p = presetById("cambre-xxii");
   return {
     v: 1,
     product: "overlay",
     preset: p.id,
     plate: { ...p.plate },
-    mods: { pitch: 22.5, slots: p.slots, margin: 0.6 },
+    mods: { pitch: p.mods.pitch, winW: p.mods.winW, slots: p.slots, margin: 0.6 },
     style: "modular",
+    window: "single",
     flat: { slit: 0.8 },
     groups: [["tecla", "tecla", "tecla"]],
     overlay: { shape: "rounded", corner: 6, wall: 2.4, face: 2, clearance: 0.3 },
@@ -108,11 +109,13 @@ export function sanitize(raw) {
       r: num(plate.r, 0, 30, d.plate.r),
     },
     mods: {
-      pitch: num(mods.pitch, 15, 40, d.mods.pitch),
+      pitch: num(mods.pitch, 12, 40, d.mods.pitch),
+      winW: num(mods.winW, 20, 120, d.mods.winW),
       slots,
       margin: num(mods.margin, 0, 3, d.mods.margin),
     },
     style: r.style === "flat" ? "flat" : "modular",
+    window: r.window === "each" ? "each" : "single",
     flat: { slit: num(r.flat?.slit, 0.3, 2, d.flat.slit) },
     groups,
     overlay: {

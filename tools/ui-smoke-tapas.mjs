@@ -51,7 +51,7 @@ for (const [name, viewport] of [
   check(true, `${name}: double-socket preset gives two flat frames`);
   await page
     .locator('[data-sec="measures"] select')
-    .selectOption({ label: "Cambre Siglo XXI / XXII" });
+    .selectOption({ label: "Cambre Siglo XXII (estándar)" });
   await page.waitForFunction(() => document.querySelectorAll(".cells.flat").length === 0, null, {
     timeout: 15000,
   });

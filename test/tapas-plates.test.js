@@ -92,7 +92,8 @@ test("a flat plate has no opening for its keys, but slits where a key meets a ne
   expect(sockets.windows).toHaveLength(2);
   // the same modules on a modular plate do get windows for their keys
   expect(
-    facePieces({ ...flat([["tecla", "tecla", "tecla"]]), style: "modular" }).windows,
+    facePieces({ ...flat([["tecla", "tecla", "tecla"]]), style: "modular", window: "each" })
+      .windows,
   ).toHaveLength(3);
 });
 
@@ -121,18 +122,20 @@ test("a flat plate with a socket leaves only its slots open", () => {
 });
 
 test("a teclon takes all three modules and one big window; a half teclon takes one and a half", () => {
-  const big = layoutModules(sanitize({ ...defaultProject(), groups: [["teclon"]] }));
+  const big = layoutModules(
+    sanitize({ ...defaultProject(), window: "each", groups: [["teclon"]] }),
+  );
   expect(big).toHaveLength(1);
   expect(big[0].span).toBe(3);
   expect(big[0].y).toBeCloseTo(0, 5);
   const halves = layoutModules(
     sanitize({ ...defaultProject(), groups: [["teclonMedio", "teclonMedio"]] }),
   );
-  expect(halves[0].y - halves[1].y).toBeCloseTo(1.5 * 22.5, 5);
+  expect(halves[0].y - halves[1].y).toBeCloseTo(1.5 * defaultProject().mods.pitch, 5);
   expect(make(sanitize({ ...defaultProject(), groups: [["teclon"]] })).warnings).not.toContain(
     "slotsOverflow",
   );
-  expect(MODULES.teclon.win.y).toBeGreaterThan(60);
+  expect(MODULES.teclon.win.y).toBeGreaterThan(50);
 });
 
 test("every module builds on both plate styles; the flat palette leaves out the modular-only types", () => {
@@ -186,4 +189,54 @@ test("style and slit width are clamped", () => {
   expect(sanitize({ style: "flat" }).style).toBe("flat");
   expect(sanitize({ flat: { slit: 99 } }).flat.slit).toBe(2);
   expect(sanitize({ flat: { slit: 0 } }).flat.slit).toBe(0.3);
+});
+
+test("Cambre Siglo XXII presets match Cambre's technical drawings (distribuidores.cambre.com.ar)", () => {
+  const byId = Object.fromEntries(PRESETS.map((x) => [x.id, x]));
+  const project = (id, slots) => {
+    const preset = byId[id];
+    const q = sanitize({
+      ...defaultProject(),
+      preset: id,
+      plate: preset.plate,
+      mods: { ...defaultProject().mods, ...preset.mods, slots: slots ?? preset.slots },
+      groups: presetLayout(preset).map((g) => g.slice(0, slots ?? preset.slots)),
+    });
+    return q;
+  };
+  const window = (p) => facePieces(p).windows[0].win;
+  // standard plate: 81 x 116, window 50.40 wide, 19 mm per module, centred
+  const std = byId["cambre-xxii"];
+  expect(std.plate).toMatchObject({ w: 81, h: 116 });
+  expect(std.plate.r).toBeLessThan(1); // 0.73 mm read from the drawing's corner curves
+  expect(std.source).toBe("maker");
+  for (const [slots, tall] of [
+    [1, 19],
+    [2, 38],
+    [3, 57],
+    [4, 76],
+  ]) {
+    expect(window(project("cambre-xxii", slots)).y, `${slots} modulos`).toBeCloseTo(tall, 5);
+    expect(window(project("cambre-xxii", slots)).x).toBeCloseTo(50.4, 5);
+  }
+  // the 4 modulos window leaves (116 - 76) / 2 = 20 mm above and below, as drawn
+  expect((std.plate.h - window(project("cambre-xxii", 4)).y) / 2).toBeCloseTo(20, 5);
+  // mignon: 81 x 79; its 1 modulo window leaves 30 mm above and below, as drawn
+  expect(byId["cambre-xxii-mignon"].plate).toMatchObject({ w: 81, h: 79 });
+  expect((79 - window(project("cambre-xxii-mignon", 1)).y) / 2).toBeCloseTo(30, 5);
+  expect(window(project("cambre-xxii-mignon", 2)).y).toBeCloseTo(38, 5);
+  // 8 modulos: 130 x 116, two columns of four share one 100.8 x 76 window, rounder corners
+  const eight = project("cambre-xxii-8");
+  expect(byId["cambre-xxii-8"].plate).toMatchObject({ w: 130, h: 116 });
+  expect(byId["cambre-xxii-8"].plate.r).toBeGreaterThan(2.5);
+  expect(window(eight).x).toBeCloseTo(100.8, 5);
+  expect(window(eight).y).toBeCloseTo(76, 5);
+  // the columns sit one window width apart, so each key lines up with its half of the window
+  expect(layoutModules(eight).map((m) => m.x)).toEqual([
+    ...Array(4).fill(-25.2),
+    ...Array(4).fill(25.2),
+  ]);
+  // and the cover for each of them builds
+  for (const id of ["cambre-xxii", "cambre-xxii-mignon", "cambre-xxii-8"])
+    expect(make(project(id)).valid, id).toBe(true);
 });

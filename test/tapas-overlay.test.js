@@ -2,6 +2,7 @@ import Module from "manifold-3d";
 import { unzipSync, strFromU8 } from "fflate";
 import { beforeAll, expect, test } from "vite-plus/test";
 import { createKit } from "../src/tools/tapas/lib/kit.js";
+import { facePieces } from "../src/tools/tapas/geom/layout.js";
 import { generateOverlay, layoutModules } from "../src/tools/tapas/geom/overlay.js";
 import { SHAPE_IDS } from "../src/tools/tapas/geom/shapes.js";
 import { MODULE_IDS } from "../src/tools/tapas/model/modules.js";
@@ -60,10 +61,38 @@ test("windows sit on the module pitch and stay inside the plate", () => {
   for (const m of layoutModules(p)) expect(Math.abs(m.y)).toBeLessThan(p.plate.h / 2);
 });
 
-test("windows reduce the volume; a blank-only plate has none", () => {
-  const withWindows = make(defaultProject());
-  const blank = make({ ...defaultProject(), groups: [["ciego", "ciego", "ciego"]] });
+test("with a window per module, windows reduce the volume and a blank-only plate has none", () => {
+  const withWindows = make({ ...defaultProject(), window: "each" });
+  const blank = make({
+    ...defaultProject(),
+    window: "each",
+    groups: [["ciego", "ciego", "ciego"]],
+  });
   expect(blank.volume).toBeGreaterThan(withWindows.volume);
+});
+
+test("a single window covers all the modules, whatever they are: 50.4 wide, 19 per module, centred", () => {
+  const p = defaultProject(); // Cambre Siglo XXII, three modules
+  const { windows, slits } = facePieces(p);
+  expect(slits).toHaveLength(0);
+  expect(windows).toHaveLength(1);
+  expect(windows[0]).toMatchObject({ x: 0, y: 0 });
+  expect(windows[0].win.x).toBeCloseTo(50.4, 5);
+  expect(windows[0].win.y).toBeCloseTo(3 * 19, 5);
+  const blank = make({ ...p, groups: [["ciego", "ciego", "ciego"]] });
+  const keys = make(p);
+  expect(blank.volume).toBeCloseTo(keys.volume, 3); // same window either way
+  // four modules make the 76 mm window of the real 4-modulos plate; two columns make 100.8 mm
+  expect(facePieces({ ...p, mods: { ...p.mods, slots: 4 } }).windows[0].win.y).toBeCloseTo(76, 5);
+  const eight = sanitize({
+    ...p,
+    groups: [
+      ["tecla", "tecla", "tecla", "tecla"],
+      ["tecla", "tecla", "tecla", "tecla"],
+    ],
+    mods: { ...p.mods, slots: 4 },
+  });
+  expect(facePieces(eight).windows[0].win.x).toBeCloseTo(100.8, 5);
 });
 
 test("overflowing modules are reported", () => {
@@ -149,22 +178,25 @@ test("engraving and cut-through remove material; raised adds a lifted layer", ()
   expect(raised.size[2]).toBeCloseTo(plain.size[2] + 1, 3);
 });
 
-test("patterns keep clear of the module windows", () => {
+test("patterns keep clear of the plate's window", () => {
   const p = withPattern("checks", "inlay", { scale: 6, margin: 3 });
   const part = make(p);
-  const m = layoutModules(p)[0];
   const [px, py] = part.center; // plate centre in mesh coordinates
+  const { windows } = facePieces(p);
   const { positions, indices } = part.bodies[1].mesh;
-  const slack = 1.5 + p.mods.margin + p.pattern.margin;
-  const hw = 21 + p.mods.margin + p.pattern.margin - 0.2;
-  const hh = 10.5 + p.mods.margin + p.pattern.margin - 0.2;
-  for (const i of indices) {
-    const x = positions[i * 3] - px - m.x;
-    const y = positions[i * 3 + 1] - py - m.y;
-    // cross-shaped test region: the window's rounded corners may legitimately hold pattern
-    const inCross =
-      (Math.abs(x) < hw - slack && Math.abs(y) < hh) ||
-      (Math.abs(x) < hw && Math.abs(y) < hh - slack);
-    expect(inCross).toBe(false);
+  const pad = p.mods.margin + p.pattern.margin - 0.2;
+  for (const m of windows) {
+    const hw = m.win.x / 2 + pad;
+    const hh = m.win.y / 2 + pad;
+    const slack = m.win.r + pad;
+    for (const i of indices) {
+      const x = positions[i * 3] - px - m.x;
+      const y = positions[i * 3 + 1] - py - m.y;
+      // cross-shaped test region: the window's rounded corners may legitimately hold pattern
+      const inCross =
+        (Math.abs(x) < hw - slack && Math.abs(y) < hh) ||
+        (Math.abs(x) < hw && Math.abs(y) < hh - slack);
+      expect(inCross).toBe(false);
+    }
   }
 });

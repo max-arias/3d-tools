@@ -127,6 +127,7 @@ test("packing keeps the aspect ratio and fits 0..4095", () => {
 import Module from "manifold-3d";
 import { beforeAll } from "vite-plus/test";
 import { createKit } from "../src/tools/tapas/lib/kit.js";
+import { facePieces } from "../src/tools/tapas/geom/layout.js";
 import { generateOverlay } from "../src/tools/tapas/geom/overlay.js";
 import { generateFrame } from "../src/tools/tapas/geom/frame.js";
 import { generateTapa } from "../src/tools/tapas/geom/tapa.js";
@@ -175,6 +176,7 @@ const withArt = (mode, extra = {}) => {
   const p = defaultProject();
   p.pattern = { ...p.pattern, id: "image", mode, size: 50, margin: 3, ...extra };
   p.art = art();
+  p.window = "each";
   p.groups = [["ciego", "ciego", "ciego"]]; // no windows: all of the face is free for the image
   return sanitize(p);
 };
@@ -212,23 +214,26 @@ test("turning a colour off removes its body, and an inlay still fills exactly it
   expect(build(generateOverlay, p).bodies).toHaveLength(3);
 });
 
-test("the image stays clear of the module windows and moves with its position", () => {
+test("the image stays clear of the plate's window and moves with its position", () => {
   const p = withArt("inlay", { size: 120 });
+  p.window = "single";
   p.groups = defaultProject().groups;
   const part = build(generateOverlay, p);
   const [px, py] = part.center;
-  const win = { x: 21 + 0.6 + 3 - 1, y: 10.5 + 0.6 + 3 - 1 }; // first tecla window plus margin, minus slack
-  const slack = 1.5 + 0.6 + 3;
-  for (const body of part.bodies.slice(1)) {
-    const { positions, indices } = body.mesh;
-    for (const i of indices) {
-      const x = positions[i * 3] - px;
-      const y = positions[i * 3 + 1] - py;
-      // the windows sit at x = 0 along the module row; inside any of them there must be no ink
-      for (const wy of [22.5, 0, -22.5]) {
+  const { windows } = facePieces(p);
+  const pad = p.mods.margin + p.pattern.margin - 1;
+  for (const m of windows) {
+    const hw = m.win.x / 2 + pad;
+    const hh = m.win.y / 2 + pad;
+    const slack = m.win.r + pad;
+    for (const body of part.bodies.slice(1)) {
+      const { positions, indices } = body.mesh;
+      for (const i of indices) {
+        const x = positions[i * 3] - px - m.x;
+        const y = positions[i * 3 + 1] - py - m.y;
         const inCross =
-          (Math.abs(x) < win.x - slack && Math.abs(y - wy) < win.y) ||
-          (Math.abs(x) < win.x && Math.abs(y - wy) < win.y - slack);
+          (Math.abs(x) < hw - slack && Math.abs(y) < hh) ||
+          (Math.abs(x) < hw && Math.abs(y) < hh - slack);
         expect(inCross).toBe(false);
       }
     }

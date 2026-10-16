@@ -391,6 +391,16 @@ export function createStage() {
     // A flat (Milan style) plate has no separate key modules: the keys are parts of its face,
     // marked by fine grooves, and sockets show only their slots.
     const flat = p.style === "flat" && p.product === "overlay";
+    if (!flat && p.window === "single") {
+      // the plate's one window: the bastidor shows through it
+      const { win } = facePieces({ ...p, style: "modular" }).windows[0];
+      const opening = new THREE.Mesh(
+        new THREE.ShapeGeometry(roundedRectShape(win.x, win.y, win.r)),
+        std("#d9d5cb", 0.9),
+      );
+      opening.position.set(0, 0, base + 0.03);
+      stockMods.add(opening);
+    }
     for (const m of layoutModules(p)) {
       if (flat && MODULES[m.type].key) continue;
       const model = moduleModel(m.type);

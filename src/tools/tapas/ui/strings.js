@@ -29,7 +29,8 @@ addStrings("es", {
     "Medí la tapa de frente (ancho y alto), cuánto sobresale de la pared y el radio de las esquinas. Si dudás, sumá 0,3 mm de holgura.",
   clearance: "Holgura (juego)",
   modules: "Módulos",
-  modulesHint: "Qué hay detrás de cada hueco. Una tapa de 5x10 tiene hasta 3 módulos.",
+  modulesHint:
+    "Qué hay detrás de la ventana. Una tapa estándar de Cambre Siglo XXII tiene hasta 4 módulos de 19 mm.",
   group: "Bastidor {n}",
   groups: "Bastidores",
   slots: "Módulos por bastidor",
@@ -227,7 +228,7 @@ addStrings("es", {
   styleModular: "Con ventanas",
   styleFlat: "Plana (la tecla es la cara)",
   styleModularHint:
-    "Sistema modular (Cambre, Jeluz, Sica, Kalop): la tapa tiene una ventana por módulo y la tecla asoma.",
+    "Sistema modular (Cambre, Jeluz, Sica, Kalop): la tapa tiene una ventana por la que asoman las teclas.",
   styleFlatHint:
     "Estilo Milán, sin marco: la cubierta tapa toda la cara. Se hace un corte fino entre teclas para que cada una se pueda apretar, y las tomas dejan abiertas solo sus ranuras.",
   modulesHintFlat:
@@ -238,10 +239,18 @@ addStrings("es", {
   "m.teclon": "Teclón (toda la tapa)",
   "m.teclonMedio": "½ teclón",
   "m.tomaRanuras": "Toma (solo ranuras)",
-  "presetSource.maker":
-    "Medida del catálogo del fabricante. Confirmala con calibre antes de imprimir.",
   "presetSource.shop": "Medida de una tienda online (no del fabricante). Confirmala con calibre.",
   "presetSource.estimate": "Valor estimado: medí tu tapa con calibre y ajustá abajo.",
+  windowMode: "Ventana de la tapa",
+  winSingle: "Una sola",
+  winEach: "Una por módulo",
+  winHintSingle:
+    "Lo habitual: una única ventana para todos los módulos, centrada (Cambre Siglo XXII: 50,4 mm de ancho y 19 mm por módulo).",
+  winHintEach:
+    "Una ventana separada por cada módulo, con puentes entre ellas (por ejemplo, la tapa «2 módulos separados» de Sica).",
+  winW: "Ancho de la ventana",
+  "presetSource.maker":
+    "Medida de los planos o el catálogo del fabricante. Confirmala con calibre antes de imprimir.",
 });
 
 addStrings("en", {
@@ -272,7 +281,8 @@ addStrings("en", {
     "Measure the plate from the front (width and height), how far it stands out of the wall, and its corner radius. When unsure, add 0.3 mm clearance.",
   clearance: "Clearance",
   modules: "Modules",
-  modulesHint: "What sits behind each opening. A 5x10 plate holds up to 3 modules.",
+  modulesHint:
+    "What sits behind the window. A standard Cambre Siglo XXII plate holds up to 4 modules of 19 mm.",
   group: "Frame {n}",
   groups: "Frames",
   slots: "Modules per frame",
@@ -469,7 +479,7 @@ addStrings("en", {
   styleModular: "With windows",
   styleFlat: "Flat (the key is the face)",
   styleModularHint:
-    "Modular system (Cambre, Jeluz, Sica, Kalop): the plate has one window per module and the key pokes through.",
+    "Modular system (Cambre, Jeluz, Sica, Kalop): the plate has a window the keys poke through.",
   styleFlatHint:
     "Milan style, frameless: the cover hides the whole face. A thin slit between keys lets each one be pressed, and sockets leave only their slots open.",
   modulesHintFlat:
@@ -480,9 +490,17 @@ addStrings("en", {
   "m.teclon": "Teclón (whole plate)",
   "m.teclonMedio": "½ teclón",
   "m.tomaRanuras": "Socket (slots only)",
-  "presetSource.maker":
-    "Size from the manufacturer's catalogue. Confirm with calipers before printing.",
   "presetSource.shop":
     "Size from an online shop listing (not the manufacturer). Confirm with calipers.",
   "presetSource.estimate": "Estimated value: measure your plate with calipers and adjust below.",
+  windowMode: "Plate window",
+  winSingle: "Single",
+  winEach: "One per module",
+  winHintSingle:
+    "The usual: one window for all the modules, centred (Cambre Siglo XXII: 50.4 mm wide and 19 mm per module).",
+  winHintEach:
+    'A separate window per module, with bridges between them (for example Sica\'s "2 módulos separados" plate).',
+  winW: "Window width",
+  "presetSource.maker":
+    "Size from the manufacturer's drawings or catalogue. Confirm with calipers before printing.",
 });

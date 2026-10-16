@@ -80,8 +80,15 @@ test("replacement tapa has the plate footprint, windows and a skirt around the b
   expect(tapa.size[0]).toBeCloseTo(p.plate.w, 3);
   expect(tapa.size[2]).toBeCloseTo(p.tapa.face + p.tapa.skirt, 3);
   expect(tapa.pocket[0]).toBeCloseTo(p.tapa.boxW + 2 * p.tapa.clearance, 5);
-  const blank = run(generateTapa, base({ product: "tapa", groups: [["ciego", "ciego", "ciego"]] }));
-  expect(blank.volume).toBeGreaterThan(tapa.volume);
+  // with a window per module, a blank-only tapa has no window and so more material
+  const each = run(generateTapa, base({ product: "tapa", window: "each" }));
+  const blank = run(
+    generateTapa,
+    base({ product: "tapa", window: "each", groups: [["ciego", "ciego", "ciego"]] }),
+  );
+  expect(blank.volume).toBeGreaterThan(each.volume);
+  // the single window of a real plate is one opening for all the modules
+  expect(tapa.volume).toBeLessThan(blank.volume);
 });
 
 test("a bastidor that does not fit inside the plate is reported", () => {

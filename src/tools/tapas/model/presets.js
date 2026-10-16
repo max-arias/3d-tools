@@ -1,14 +1,46 @@
 // Starting sizes per hardware line. Plate = the visible plate (mm, portrait: w across, h along the
 // module row), d = how far it stands out of the wall. `source` says how far to trust the size:
-//   maker    from the manufacturer's own catalogue
+//   maker    from the manufacturer's own catalogue or technical drawings
 //   shop     from a retailer's spec field
 //   estimate typical value, measure yours (TDT-32)
-// `style: "flat"` = the key is the face (Milan); `layout` = the modules to start with.
+// `mods` = { pitch, winW }: the module height and the plate window's width (modular plates have one
+// window for all their modules). `style: "flat"` = the key is the face (Milan); `layout` = the
+// modules to start with. Plate depth `d` is an estimate everywhere.
+const CAMBRE = { pitch: 19, winW: 50.4 }; // Cambre's drawings: 4 modulos = 76 mm, window 50.4 mm wide
+
 export const PRESETS = [
   {
+    id: "cambre-xxii",
+    label: "Cambre Siglo XXII (estándar)",
+    plate: { w: 81, h: 116, d: 8, r: 0.75 },
+    mods: CAMBRE,
+    slots: 3,
+    groups: 1,
+    source: "maker",
+  },
+  {
+    id: "cambre-xxii-mignon",
+    label: "Cambre Siglo XXII mignón",
+    plate: { w: 81, h: 79, d: 8, r: 0.75 },
+    mods: CAMBRE,
+    slots: 2,
+    groups: 1,
+    source: "maker",
+  },
+  {
+    id: "cambre-xxii-8",
+    label: "Cambre Siglo XXII 8 módulos",
+    plate: { w: 130, h: 116, d: 8, r: 3 },
+    mods: CAMBRE,
+    slots: 4,
+    groups: 2,
+    source: "maker",
+  },
+  {
     id: "cambre-xxi",
-    label: "Cambre Siglo XXI / XXII",
+    label: "Cambre Siglo XXI",
     plate: { w: 81, h: 123, d: 8, r: 4 },
+    mods: CAMBRE,
     slots: 3,
     groups: 1,
     source: "shop",
@@ -17,6 +49,7 @@ export const PRESETS = [
     id: "kalop-richi",
     label: "Kalop Civil / Richi / genérica",
     plate: { w: 81, h: 127, d: 8, r: 4 },
+    mods: CAMBRE,
     slots: 3,
     groups: 1,
     source: "shop",
@@ -25,6 +58,7 @@ export const PRESETS = [
     id: "jeluz-verona",
     label: "Jeluz Verona / Platinum",
     plate: { w: 81, h: 123, d: 8, r: 4 },
+    mods: CAMBRE,
     slots: 3,
     groups: 1,
     source: "estimate",
@@ -33,6 +67,7 @@ export const PRESETS = [
     id: "sica-life",
     label: "Sica Life",
     plate: { w: 81, h: 123, d: 8, r: 5 },
+    mods: CAMBRE,
     slots: 3,
     groups: 1,
     source: "estimate",
@@ -57,14 +92,6 @@ export const PRESETS = [
     layout: [["tomaRanuras"], ["tomaRanuras"]],
     source: "maker",
   },
-  {
-    id: "generic-10x10",
-    label: "Caja 10x10 (dos bastidores)",
-    plate: { w: 122, h: 122, d: 8, r: 4 },
-    slots: 3,
-    groups: 2,
-    source: "estimate",
-  },
   { id: "custom", label: "Medidas propias", plate: null, slots: 3, groups: 1 },
 ];
 
@@ -73,4 +100,6 @@ export const presetById = (id) => PRESETS.find((p) => p.id === id) ?? PRESETS[0]
 /** The module layout a preset starts with. */
 export const presetLayout = (preset) =>
   preset.layout ??
-  Array.from({ length: preset.groups }, () => ["tecla", "tecla", "tecla"].slice(0, preset.slots));
+  Array.from({ length: preset.groups }, () =>
+    ["tecla", "tecla", "tecla", "tecla"].slice(0, preset.slots),
+  );

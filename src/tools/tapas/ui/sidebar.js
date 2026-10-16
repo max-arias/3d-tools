@@ -212,7 +212,14 @@ export function createSidebar() {
             q.preset = next.id;
             if (next.plate) q.plate = { ...next.plate };
             q.mods.slots = next.slots;
-            if (next.plate) q.style = next.style ?? "modular";
+            if (next.mods) {
+              q.mods.pitch = next.mods.pitch;
+              q.mods.winW = next.mods.winW;
+            }
+            if (next.plate) {
+              q.style = next.style ?? "modular";
+              q.window = "single"; // real plates have one window for all their modules
+            }
             q.groups = presetLayout(next).map((g) => [...g]);
           });
           paint();
@@ -278,6 +285,23 @@ export function createSidebar() {
         ),
       p.product === "overlay" &&
         h("p", { class: "hint muted" }, t(flat ? "styleFlatHint" : "styleModularHint")),
+      !flat &&
+        row(
+          t("windowMode"),
+          segmented({
+            value: p.window,
+            options: [
+              { value: "single", label: t("winSingle") },
+              { value: "each", label: t("winEach") },
+            ],
+            onChange: (v) => {
+              update((q) => (q.window = v));
+              paint();
+            },
+          }),
+        ),
+      !flat &&
+        h("p", { class: "hint muted" }, t(p.window === "single" ? "winHintSingle" : "winHintEach")),
       h("p", { class: "hint muted" }, t(flat ? "modulesHintFlat" : "modulesHint")),
       baysDiagram({
         groups: p.groups,
@@ -331,6 +355,19 @@ export function createSidebar() {
         "details",
         { class: "help" },
         h("summary", {}, t("fine")),
+        !flat &&
+          p.window === "single" &&
+          row(
+            t("winW"),
+            numField({
+              value: p.mods.winW,
+              min: 20,
+              max: 120,
+              step: 0.1,
+              unit: "mm",
+              onChange: (v) => update((q) => (q.mods.winW = v)),
+            }),
+          ),
         !flat &&
           row(
             t("pitch"),
