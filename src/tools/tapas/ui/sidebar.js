@@ -543,8 +543,8 @@ export function createSidebar() {
         t("artX"),
         numField({
           value: p.pattern.ax,
-          min: -150,
-          max: 150,
+          min: -250,
+          max: 250,
           step: 1,
           unit: "mm",
           onChange: (v) => update((q) => (q.pattern.ax = v)),
@@ -554,8 +554,8 @@ export function createSidebar() {
         t("artY"),
         numField({
           value: p.pattern.ay,
-          min: -150,
-          max: 150,
+          min: -250,
+          max: 250,
           step: 1,
           unit: "mm",
           onChange: (v) => update((q) => (q.pattern.ay = v)),
@@ -995,6 +995,13 @@ export function createSidebar() {
   }
 
   paint();
+  // A drag in the preview changes the position and size behind the panel's back: redraw when it ends.
+  let rev = view.get().artRev ?? 0;
+  view.subscribe((v) => {
+    if ((v.artRev ?? 0) === rev) return;
+    rev = v.artRev ?? 0;
+    paint();
+  });
   langStore.subscribe(() => paint());
   // Typing in a numeric field must not rebuild the panel; structural changes do it explicitly via paint().
   project.subscribe(() => {

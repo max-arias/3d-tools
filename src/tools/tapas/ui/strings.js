@@ -221,6 +221,9 @@ addStrings("es", {
   artMirror: "Espejar",
   artFit: "Ajustar al frente",
   artRemove: "Quitar la imagen",
+  moveArt: "Mover imagen",
+  moveHint:
+    "Arrastrá para mover la imagen; rueda del mouse para cambiar el tamaño. Lo que sale de la tapa o queda detrás de las ventanas no se imprime.",
 });
 
 addStrings("en", {
@@ -442,4 +445,7 @@ addStrings("en", {
   artMirror: "Mirror",
   artFit: "Fit to the face",
   artRemove: "Remove the image",
+  moveArt: "Move image",
+  moveHint:
+    "Drag to move the image; mouse wheel to resize. Whatever leaves the plate or sits behind the windows is not printed.",
 });

@@ -570,3 +570,19 @@ select {
   border: 1px solid var(--line);
   background: transparent;
 }
+
+.hintbar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 44px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  pointer-events: none;
+}
+.hintbar:empty {
+  display: none;
+}

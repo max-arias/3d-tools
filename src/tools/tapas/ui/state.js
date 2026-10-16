@@ -81,9 +81,10 @@ let seq = 0;
 let timer;
 function generate() {
   const mine = ++seq;
+  const { ax, ay } = project.get().pattern; // where the image sits in this build, for the drag preview
   result.set({ status: "loading" });
   run("generate", project.get()).then(
-    (part) => mine === seq && result.set({ status: "ok", part, error: null }),
+    (part) => mine === seq && result.set({ status: "ok", part, snap: { ax, ay }, error: null }),
     (error) => mine === seq && result.set({ status: "error", error: error.message }),
   );
 }

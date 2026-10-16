@@ -324,3 +324,41 @@ test("soft anti-aliased edges do not take a colour slot", () => {
     1,
   ); // blue
 });
+
+import { LIMIT, dragPlacement, previewOffset, wheelSize } from "../src/tools/tapas/ui/drag.js";
+
+test("dragging right on the face moves the image right as seen (the cover is shown turned over)", () => {
+  const start = { x: 0, y: 0 };
+  // view x grows to the right; design x runs the other way, so ax shrinks
+  expect(dragPlacement({ start, hit: { x: 10, y: 0 }, ax: 0, ay: 0 })).toEqual({ ax: -10, ay: 0 });
+  expect(dragPlacement({ start, hit: { x: 0, y: 5 }, ax: 3, ay: 4 })).toEqual({ ax: 3, ay: 9 });
+  // the shown shift (view) and the stored shift (design) describe the same movement
+  const moved = dragPlacement({ start, hit: { x: 10, y: 5 }, ax: 0, ay: 0 });
+  expect(previewOffset(moved, { ax: 0, ay: 0 })).toEqual({ x: 10, y: 5 });
+});
+
+test("the image may be dragged far off the face, within a limit", () => {
+  const far = dragPlacement({ start: { x: 0, y: 0 }, hit: { x: -900, y: 900 }, ax: 0, ay: 0 });
+  expect(far).toEqual({ ax: LIMIT, ay: LIMIT });
+  expect(wheelSize(40, -100)).toBeGreaterThan(40);
+  expect(wheelSize(40, 100)).toBeLessThan(40);
+  expect(wheelSize(249, -100)).toBe(250);
+  expect(wheelSize(5.2, 100)).toBe(5);
+});
+
+test("an image placed partly off the plate still builds, and prints only what stays on the face", () => {
+  const inside = withArt("inlay", { ax: 0, ay: 0 });
+  const half = withArt("inlay", { ax: 40, ay: 0 }); // the plate is ~81 wide: part of the art is past its edge
+  const gone = withArt("inlay", { ax: 200, ay: 0 }); // entirely off the plate
+  const vol = (p) =>
+    build(generateOverlay, p)
+      .bodies.slice(1)
+      .reduce((a, b) => a + b.volume, 0);
+  const full = vol(inside);
+  expect(vol(half)).toBeGreaterThan(0);
+  expect(vol(half)).toBeLessThan(full * 0.95);
+  const off = build(generateOverlay, gone);
+  expect(off.valid).toBe(true);
+  expect(off.bodies).toHaveLength(1);
+  expect(off.warnings).toContain("artOutside");
+});
