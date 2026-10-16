@@ -47,7 +47,12 @@ test("a mitred rectangular frame matches the exact mitre volume for every profil
     expect(f.size[0], id).toBeCloseTo(win[0] + 2 * p.moulding.width, 2);
     // Path length at offset u is P + 8u for a mitred rectangle, so V = A*P + 8 * integral(u dA).
     const L = f.layers;
-    const poly = crossSection(id, { w: 20, hgt: L.hgt, rd: L.rd, ru: p.photo.overlap + p.rabbet.clearance });
+    const poly = crossSection(id, {
+      w: 20,
+      hgt: L.hgt,
+      rd: L.rd,
+      ru: p.photo.overlap + p.rabbet.clearance,
+    });
     const A = area(poly);
     const ux = poly.reduce((a, [x0, y0], i) => {
       const [x1, y1] = poly[(i + 1) % poly.length];
@@ -79,7 +84,10 @@ test("the plate is smaller than the pocket by a clearance on every side", () => 
   const f = run(generateFrame, p);
   const back = part(f, "back");
   const win = [p.photo.w - 2 * p.photo.overlap, p.photo.h - 2 * p.photo.overlap];
-  const pocket = [win[0] + 2 * (p.photo.overlap + p.rabbet.clearance), win[1] + 2 * (p.photo.overlap + p.rabbet.clearance)];
+  const pocket = [
+    win[0] + 2 * (p.photo.overlap + p.rabbet.clearance),
+    win[1] + 2 * (p.photo.overlap + p.rabbet.clearance),
+  ];
   // The bumps stand 0.35 proud of the plate edge, which is 0.15 inside the pocket wall.
   expect(back.size[0]).toBeCloseTo(pocket[0] - 0.3 + 0.7, 1);
   expect(back.size[1]).toBeCloseTo(pocket[1] - 0.3 + 0.7, 1);
@@ -133,7 +141,11 @@ test("a frame bigger than the bed is cut into pieces that each fit, with connect
   expect(pieces.length).toBe(f.plan.nx * f.plan.ny - (f.plan.nx > 2 && f.plan.ny > 2 ? 1 : 0));
   for (const q of f.parts.filter((q) => q.role !== "key")) {
     const { size } = printable(q);
-    expect(Math.min(size[0], size[1]) <= 250 && Math.max(size[0], size[1]) <= 250 || (size[0] <= 250 && size[1] <= 250), q.name).toBe(true);
+    expect(
+      (Math.min(size[0], size[1]) <= 250 && Math.max(size[0], size[1]) <= 250) ||
+        (size[0] <= 250 && size[1] <= 250),
+      q.name,
+    ).toBe(true);
   }
   // 2 x 2 split: 2 cuts, each crossing the ring twice.
   expect(f.plan.nx * f.plan.ny).toBeGreaterThan(1);
@@ -154,10 +166,14 @@ test("lithophane panel is a valid solid whose thickness follows the image", () =
   const cols = 20;
   const rows = 30;
   const data = new Uint8Array(cols * rows).fill(255);
-  for (let i = 0; i < cols * rows / 2; i++) data[i] = 0; // top half black
+  for (let i = 0; i < (cols * rows) / 2; i++) data[i] = 0; // top half black
   const kit = createKit(wasm);
   try {
-    const m = lithophane(kit, { cols, rows, data }, { w: 40, h: 60, z0: 0, min: 1, max: 3, invert: false });
+    const m = lithophane(
+      kit,
+      { cols, rows, data },
+      { w: 40, h: 60, z0: 0, min: 1, max: 3, invert: false },
+    );
     expect(m.status()).toBe("NoError");
     expect(m.volume()).toBeCloseTo(40 * 60 * (0.5 * 3 + 0.5 * 1), -1);
   } finally {

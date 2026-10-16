@@ -48,7 +48,12 @@ export function windowPath(shape, win) {
       });
     }
   }
-  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+  return [
+    [-hw, -hh],
+    [hw, -hh],
+    [hw, hh],
+    [-hw, hh],
+  ];
 }
 
 /**
@@ -74,8 +79,8 @@ export function crossings(path, axis, at) {
   return out;
 }
 
-/** Distance from the origin to the outline along the unit axis direction (dx, dy). */
-export function rayHit(win, dx, dy) {
+/** Distance from the origin to the outline along the x axis when `dx` is set, otherwise along y. */
+export function rayHit(win, dx) {
   // `win` here is the window size [w, h]; shapes reach their bounding box at the axis extremes.
   return dx ? win[0] / 2 : win[1] / 2;
 }

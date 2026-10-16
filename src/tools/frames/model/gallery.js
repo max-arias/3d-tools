@@ -63,7 +63,8 @@ export function galleryFromHash(hash) {
   try {
     const json = JSON.parse(LZString.decompressFromEncodedURIComponent(m[1]));
     const gallery = sanitizeGallery({ items: json.items });
-    gallery.active = gallery.items[Math.min(Math.max(0, json.active | 0), gallery.items.length - 1)].id;
+    gallery.active =
+      gallery.items[Math.min(Math.max(0, json.active | 0), gallery.items.length - 1)].id;
     return gallery;
   } catch {
     return null;

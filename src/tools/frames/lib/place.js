@@ -17,7 +17,11 @@ export function printable(part) {
     out[i] = X;
     out[i + 1] = Y;
     out[i + 2] = z;
-    for (const [k, v] of [[0, X], [1, Y], [2, z]]) {
+    for (const [k, v] of [
+      [0, X],
+      [1, Y],
+      [2, z],
+    ]) {
       if (v < min[k]) min[k] = v;
       if (v > max[k]) max[k] = v;
     }
@@ -27,5 +31,8 @@ export function printable(part) {
     out[i + 1] -= min[1];
     out[i + 2] -= min[2];
   }
-  return { mesh: { positions: out, indices: part.mesh.indices }, size: [max[0] - min[0], max[1] - min[1], max[2] - min[2]] };
+  return {
+    mesh: { positions: out, indices: part.mesh.indices },
+    size: [max[0] - min[0], max[1] - min[1], max[2] - min[2]],
+  };
 }

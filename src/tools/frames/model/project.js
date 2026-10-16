@@ -8,7 +8,8 @@ export const MAT_EDGES = ["straight", "scalloped", "perforated"];
 export const RETENTIONS = ["clip", "slide"];
 export const MOUNTS = ["none", "stand", "hanger", "magnets"];
 
-const num = (v, lo, hi, d) => (Number.isFinite(+v) && v !== "" && v !== null ? Math.min(hi, Math.max(lo, +v)) : d);
+const num = (v, lo, hi, d) =>
+  Number.isFinite(+v) && v !== "" && v !== null ? Math.min(hi, Math.max(lo, +v)) : d;
 const oneOf = (v, list, d) => (list.includes(v) ? v : d);
 const hex = (v, d) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : d);
 
@@ -20,7 +21,16 @@ export function defaultProject() {
     moulding: { profile: "curve", width: 20, height: 12 },
     rabbet: { clearance: 0.4, lip: 2 },
     stack: { glass: 0, photo: 0.6, back: 2, gap: 0 },
-    mat: { on: false, border: 12, thickness: 1.6, edge: "straight", rows: 1, cols: 1, gap: 6, backer: false },
+    mat: {
+      on: false,
+      border: 12,
+      thickness: 1.6,
+      edge: "straight",
+      rows: 1,
+      cols: 1,
+      gap: 6,
+      backer: false,
+    },
     retention: "clip",
     mount: { type: "stand", angle: 20, magnetD: 10, magnetH: 2 },
     texture: { type: "none", depth: 0.25, scale: 1, seed: 1 },
@@ -116,7 +126,8 @@ export function sanitize(raw) {
       back: hex(r.colors?.back, d.colors.back),
     },
     print: {
-      printer: typeof r.print?.printer === "string" ? r.print.printer.slice(0, 40) : d.print.printer,
+      printer:
+        typeof r.print?.printer === "string" ? r.print.printer.slice(0, 40) : d.print.printer,
       x: num(r.print?.x, 40, 1000, d.print.x),
       y: num(r.print?.y, 40, 1000, d.print.y),
       tol: num(r.print?.tol, 0, 0.5, d.print.tol),

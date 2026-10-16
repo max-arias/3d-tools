@@ -55,11 +55,16 @@ export function lithophane(kit, grid, { w, h, z0, min, max, invert }) {
   const B = topCount; // first bottom vertex id
   const tris = [];
   for (let j = 0; j < ny; j++)
-    for (let i = 0; i < nx; i++) tris.push(v(i, j), v(i + 1, j), v(i + 1, j + 1), v(i, j), v(i + 1, j + 1), v(i, j + 1));
+    for (let i = 0; i < nx; i++)
+      tris.push(v(i, j), v(i + 1, j), v(i + 1, j + 1), v(i, j), v(i + 1, j + 1), v(i, j + 1));
   for (let k = 0; k < R; k++) {
     const k2 = (k + 1) % R;
     tris.push(B + k, B + k2, ring[k2], B + k, ring[k2], ring[k]); // wall
     tris.push(B + R, B + k2, B + k); // bottom
   }
-  return kit.own(new kit.Manifold(new kit.Mesh({ numProp: 3, vertProperties: all, triVerts: Uint32Array.from(tris) })));
+  return kit.own(
+    new kit.Manifold(
+      new kit.Mesh({ numProp: 3, vertProperties: all, triVerts: Uint32Array.from(tris) }),
+    ),
+  );
 }

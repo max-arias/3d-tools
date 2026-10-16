@@ -10,22 +10,42 @@ export function frameSizes(p) {
   const [pw, ph] = p.photo.landscape ? [p.photo.h, p.photo.w] : [p.photo.w, p.photo.h];
   const win0 = [Math.max(pw - 2 * p.photo.overlap, 2), Math.max(ph - 2 * p.photo.overlap, 2)];
   const win = effectiveWin(p.shape, win0);
-  return { photo: [pw, ph], win, outer: [win[0] + 2 * p.moulding.width, win[1] + 2 * p.moulding.width] };
+  return {
+    photo: [pw, ph],
+    win,
+    outer: [win[0] + 2 * p.moulding.width, win[1] + 2 * p.moulding.width],
+  };
 }
 
 /** Moulding height after the lip rule: the lip over the rabbet stays at least `lip` thick. */
 export function mouldingHeight(p, rd, ru) {
   const low = minHeight(p.moulding.profile, ru / p.moulding.width);
   const need = (rd + p.rabbet.lip) / low;
-  return need > p.moulding.height ? { hgt: need, raised: true } : { hgt: p.moulding.height, raised: false };
+  return need > p.moulding.height
+    ? { hgt: need, raised: true }
+    : { hgt: p.moulding.height, raised: false };
 }
 
 const perimeter = (path) =>
-  path.reduce((a, q, i) => a + Math.hypot(path[(i + 1) % path.length][0] - q[0], path[(i + 1) % path.length][1] - q[1]), 0);
+  path.reduce(
+    (a, q, i) =>
+      a + Math.hypot(path[(i + 1) % path.length][0] - q[0], path[(i + 1) % path.length][1] - q[1]),
+    0,
+  );
 
 function record(kit, body, name, role, extra = {}) {
   const out = kit.export(body, [0, 0, 0]);
-  return { name, role, mesh: out.mesh, min: out.min, size: out.size, volume: out.volume, valid: out.valid, triangles: out.triangles, ...extra };
+  return {
+    name,
+    role,
+    mesh: out.mesh,
+    min: out.min,
+    size: out.size,
+    volume: out.volume,
+    valid: out.valid,
+    triangles: out.triangles,
+    ...extra,
+  };
 }
 
 /** Split a flat part (back, mat, ...) to fit the bed; no connectors, the frame holds the pieces. */
@@ -37,7 +57,9 @@ function fitPart(kit, body, name, role, bed, warnings) {
   if (!plan.fits) warnings.add("partTooBig");
   const pieces = cutGrid(kit, body, bb, plan.nx, plan.ny);
   return pieces.map(({ body: b, r, c }) =>
-    record(kit, b, pieces.length > 1 ? `${name}_r${r + 1}c${c + 1}` : name, role, { angle: plan.angle }),
+    record(kit, b, pieces.length > 1 ? `${name}_r${r + 1}c${c + 1}` : name, role, {
+      angle: plan.angle,
+    }),
   );
 }
 
@@ -71,7 +93,8 @@ export function generateFrame(kit, p, extra = {}) {
       ? {}
       : {
           maxSeg: Math.max(0.6, peri / 2500),
-          displace: (s, j, x, y) => (j > t0 && j < t1 ? textureOffset(tex, s, profile[j][0], x, y) : 0),
+          displace: (s, j, x, y) =>
+            j > t0 && j < t1 ? textureOffset(tex, s, profile[j][0], x, y) : 0,
         };
   let frame = kit.sweepLoop(profile, path, sweepOpts);
 
@@ -120,7 +143,11 @@ export function generateFrame(kit, p, extra = {}) {
   }
   const pieces = cutGrid(kit, frame, bb, plan.nx, plan.ny);
   for (const { body, r, c } of pieces)
-    parts.push(record(kit, body, pieces.length > 1 ? `frame_r${r + 1}c${c + 1}` : "frame", "frame", { angle: plan.angle }));
+    parts.push(
+      record(kit, body, pieces.length > 1 ? `frame_r${r + 1}c${c + 1}` : "frame", "frame", {
+        angle: plan.angle,
+      }),
+    );
   keys.forEach((k, i) => parts.push(record(kit, k, `key_${i + 1}`, "key", { angle: 0 })));
 
   if (plate) parts.push(...fitPart(kit, plate, "back", "back", bed, warnings));

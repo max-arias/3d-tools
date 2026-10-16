@@ -362,3 +362,43 @@ select {
   border-color: var(--accent);
   color: var(--text);
 }
+
+.items {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.items li {
+  display: grid;
+  grid-template-columns: 1fr auto 56px auto;
+  align-items: center;
+  gap: 6px;
+}
+.items li.on .pick {
+  border-color: var(--accent);
+}
+.items .pick {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.items .x {
+  padding: 2px 8px;
+}
+.pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.small {
+  font-size: 12px;
+  margin: 4px 0;
+}
+.warn {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--accent-text);
+}

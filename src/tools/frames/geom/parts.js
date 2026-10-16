@@ -30,12 +30,7 @@ function edgeCircles(kit, cs, pitch, r, shift) {
         const t = (k + 0.5) / n;
         // Right-hand side of a counter-clockwise boundary points out of the solid.
         out.push(
-          kit.circle(
-            r,
-            a[0] + dx * t + (dy / len) * shift,
-            a[1] + dy * t - (dx / len) * shift,
-            12,
-          ),
+          kit.circle(r, a[0] + dx * t + (dy / len) * shift, a[1] + dy * t - (dx / len) * shift, 12),
         );
       }
     }
@@ -114,8 +109,22 @@ export function stackParts(kit, p, L, { plateCS, winCS, photoCS }) {
 export function magnetSpots(win) {
   const [w, h] = win;
   if (Math.min(w, h) < 40) return [[0, 0]];
-  if (Math.min(w, h) < 90) return w < h ? [[0, h * 0.25], [0, -h * 0.25]] : [[-w * 0.25, 0], [w * 0.25, 0]];
-  return [[-w * 0.25, h * 0.25], [w * 0.25, h * 0.25], [-w * 0.25, -h * 0.25], [w * 0.25, -h * 0.25]];
+  if (Math.min(w, h) < 90)
+    return w < h
+      ? [
+          [0, h * 0.25],
+          [0, -h * 0.25],
+        ]
+      : [
+          [-w * 0.25, 0],
+          [w * 0.25, 0],
+        ];
+  return [
+    [-w * 0.25, h * 0.25],
+    [w * 0.25, h * 0.25],
+    [-w * 0.25, -h * 0.25],
+    [w * 0.25, -h * 0.25],
+  ];
 }
 
 /** Stand geometry numbers shared by the slot in the back and the leg itself. */
@@ -140,7 +149,9 @@ export function backCuts(kit, p, L, win, outerH) {
     cuts.push(kit.box(-2.1, 2.1, y - 9, y, -0.1, L.bt + 0.1));
   } else if (p.mount.type === "stand") {
     const s = standDims(p, L, win, outerH);
-    cuts.push(kit.box(-s.slotW / 2, s.slotW / 2, s.yp - s.slotT / 2, s.yp + s.slotT / 2, -0.1, L.bt + 0.1));
+    cuts.push(
+      kit.box(-s.slotW / 2, s.slotW / 2, s.yp - s.slotT / 2, s.yp + s.slotT / 2, -0.1, L.bt + 0.1),
+    );
   }
   return cuts;
 }
@@ -152,7 +163,12 @@ export function standPart(kit, p, L, win, outerH) {
   const n = [Math.sin(s.theta), -Math.cos(s.theta)];
   const start = [s.yp, -1.5];
   const q = (k, m) => [start[0] + d[0] * k + n[0] * m, start[1] + d[1] * k + n[1] * m];
-  const bar = kit.poly([q(0, s.thick / 2), q(s.length, s.thick / 2), q(s.length, -s.thick / 2), q(0, -s.thick / 2)]);
+  const bar = kit.poly([
+    q(0, s.thick / 2),
+    q(s.length, s.thick / 2),
+    q(s.length, -s.thick / 2),
+    q(0, -s.thick / 2),
+  ]);
   const tab = kit.rect(s.yp - s.thick / 2, s.yp + s.thick / 2, -2.5, L.bt - 0.3);
   // Sketched as (y, z); extruded along x across the width.
   const body = kit.cabToXyz(kit.ext(kit.csUnion(bar, tab), -s.width / 2, s.width / 2));
@@ -167,7 +183,12 @@ export function clipFeatures(kit, p, L, win, ru) {
   const z0 = L.bt * 0.25;
   const z1 = L.bt * 0.75;
   const plateGap = 0.15;
-  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const dirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
   for (const [dx, dy] of dirs) {
     const reach = rayHit(win, dx, dy);
     const wall = reach + ru; // pocket wall along this axis

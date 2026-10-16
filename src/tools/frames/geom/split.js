@@ -30,8 +30,12 @@ export function planGrid(W, H, bed, cutOk = () => true) {
       const a = fitAngle(cw, ch, bx, by);
       if (a === null || a > 90) continue;
       const ok =
-        Array.from({ length: nx - 1 }, (_, k) => cutOk(0, -W / 2 + ((k + 1) * W) / nx)).every(Boolean) &&
-        Array.from({ length: ny - 1 }, (_, k) => cutOk(1, -H / 2 + ((k + 1) * H) / ny)).every(Boolean);
+        Array.from({ length: nx - 1 }, (_, k) => cutOk(0, -W / 2 + ((k + 1) * W) / nx)).every(
+          Boolean,
+        ) &&
+        Array.from({ length: ny - 1 }, (_, k) => cutOk(1, -H / 2 + ((k + 1) * H) / ny)).every(
+          Boolean,
+        );
       if (!ok) continue;
       const cost = nx * ny * 1e7 + cw * ch;
       if (!best || cost < best.cost) best = { nx, ny, angle: a, cost, fits: true };
@@ -78,7 +82,14 @@ export function connectors(kit, { path, bb, nx, ny, ru, w, depthMax, tol }) {
   const Be = Math.min(7, flat * 0.75);
   const Bn = Be * 0.45;
   const L = Math.min(16, Be * 2.4);
-  const bowtie = [[-L / 2, -Be / 2], [-L / 2, Be / 2], [0, Bn / 2], [L / 2, Be / 2], [L / 2, -Be / 2], [0, -Bn / 2]];
+  const bowtie = [
+    [-L / 2, -Be / 2],
+    [-L / 2, Be / 2],
+    [0, Bn / 2],
+    [L / 2, Be / 2],
+    [L / 2, -Be / 2],
+    [0, -Bn / 2],
+  ];
   const place = (cx, cy, alongX) => {
     const pts = bowtie.map(([a, b]) => (alongX ? [cx + a, cy + b] : [cx + b, cy + a]));
     const key = kit.poly(pts);
