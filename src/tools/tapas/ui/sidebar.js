@@ -381,7 +381,7 @@ export function createSidebar() {
               "p",
               { class: "bad" },
               t("slotsOver", { used, slots: p.mods.slots }),
-              " ",
+              ". ",
               t("slotsOverHint"),
             ),
         );

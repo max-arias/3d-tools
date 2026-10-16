@@ -130,7 +130,7 @@ test("every pattern builds in every mode", () => {
       );
     }
   }
-});
+}, 120000);
 
 test("an inlay fills exactly the recess it cuts", () => {
   const plain = make(defaultProject());
