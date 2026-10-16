@@ -2,6 +2,7 @@ import { createStore } from "../../../shell/store.js";
 import { run } from "../lib/client.js";
 import { houseFromHash, loadHouse, newItem, saveHouse, sanitizeHouse } from "../model/house.js";
 import { placementKey } from "./drag.js";
+import { markEdited } from "../model/provenance.js";
 import { projectFromHash, sanitize } from "../model/project.js";
 import { t } from "../lib/i18n.js";
 
@@ -26,9 +27,12 @@ export const result = createStore({ status: "loading", part: null, error: null }
 export const view = createStore({ copies: 1, mode: "3d", stock: false });
 
 /** Apply an edit function to a copy of the project; the result is clamped by `sanitize`. */
-export function update(fn) {
-  const next = structuredClone(project.get());
+export function update(fn, { preset = false } = {}) {
+  const before = project.get();
+  const next = structuredClone(before);
   fn(next);
+  // A value you change becomes yours (measured); loading a preset sets its sources itself.
+  if (!preset) next.src = markEdited(before, next);
   project.set(sanitize(next));
 }
 

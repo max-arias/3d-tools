@@ -3,10 +3,12 @@ import { checkbox, numField, row, segmented, slider, stepper } from "../../../sh
 import { langStore, t } from "../lib/i18n.js";
 import { FLAT_IDS, FLAT_MAX } from "../model/modules.js";
 import { PRESETS, presetById, presetLayout } from "../model/presets.js";
+import { presetSources, unverified } from "../model/provenance.js";
 import { ICON_IDS } from "../geom/icons.js";
 import { facePieces } from "../geom/layout.js";
 import { ArtError, drawThumb, hasRasterSource, importFile, retrace } from "./art.js";
 import { baysDiagram, plateDiagram } from "./diagrams.js";
+import { badge, staticBadge, track } from "./provenance.js";
 import { PATTERN_MODES, PRODUCTS } from "../model/project.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
 import { SHAPE_IDS } from "../geom/shapes.js";
@@ -208,20 +210,24 @@ export function createSidebar() {
       {
         onchange: (e) => {
           const next = presetById(e.target.value);
-          update((q) => {
-            q.preset = next.id;
-            if (next.plate) q.plate = { ...next.plate };
-            q.mods.slots = next.slots;
-            if (next.mods) {
-              q.mods.pitch = next.mods.pitch;
-              q.mods.winW = next.mods.winW;
-            }
-            if (next.plate) {
-              q.style = next.style ?? "modular";
-              q.window = "single"; // real plates have one window for all their modules
-            }
-            q.groups = presetLayout(next).map((g) => [...g]);
-          });
+          update(
+            (q) => {
+              q.preset = next.id;
+              if (next.plate) q.plate = { ...next.plate };
+              q.mods.slots = next.slots;
+              if (next.mods) {
+                q.mods.pitch = next.mods.pitch;
+                q.mods.winW = next.mods.winW;
+              }
+              if (next.plate) {
+                q.style = next.style ?? "modular";
+                q.window = "single"; // real plates have one window for all their modules
+              }
+              q.groups = presetLayout(next).map((g) => [...g]);
+              q.src = { ...q.src, ...presetSources(next) };
+            },
+            { preset: true },
+          );
           paint();
         },
       },
@@ -233,6 +239,7 @@ export function createSidebar() {
       row(t("preset"), presetSelect),
       preset.source && h("p", { class: "hint muted" }, t(`presetSource.${preset.source}`)),
       plateDiagram({
+        badge,
         values: p.plate,
         windows: () => diagramPieces(),
         onChange: (key, v) => update((q) => (q.plate[key] = v)),
@@ -358,7 +365,7 @@ export function createSidebar() {
         !flat &&
           p.window === "single" &&
           row(
-            t("winW"),
+            h("span", {}, t("winW"), badge("mods.winW")),
             numField({
               value: p.mods.winW,
               min: 20,
@@ -370,7 +377,7 @@ export function createSidebar() {
           ),
         !flat &&
           row(
-            t("pitch"),
+            h("span", {}, t("pitch"), badge("mods.pitch")),
             numField({
               value: p.mods.pitch,
               min: 15,
@@ -785,11 +792,28 @@ export function createSidebar() {
       "tapaSpec",
       t("tapaSpec"),
       plateDiagram({
+        badge,
         values: { w: p.plate.w, h: p.plate.h, d: p.tapa.skirt, r: p.plate.r },
         inner: { w: p.tapa.boxW, h: p.tapa.boxH },
         fields: [
-          { key: "boxW", min: 30, max: 200, step: 0.5, label: "dimBoxW", at: "w" },
-          { key: "boxH", min: 30, max: 250, step: 0.5, label: "dimBoxH", at: "h" },
+          {
+            key: "boxW",
+            min: 30,
+            max: 200,
+            step: 0.5,
+            label: "dimBoxW",
+            at: "w",
+            path: "tapa.boxW",
+          },
+          {
+            key: "boxH",
+            min: 30,
+            max: 250,
+            step: 0.5,
+            label: "dimBoxH",
+            at: "h",
+            path: "tapa.boxH",
+          },
           { key: "skirt", min: 2, max: 20, step: 0.5, label: "dimSkirt", at: "d" },
         ],
         windows: () => diagramPieces(true),
@@ -803,7 +827,7 @@ export function createSidebar() {
         f(t("tClearance"), "clearance", 0, 1, 0.05),
         f(t("tFace"), "face", 1.6, 8, 0.2),
         f(t("tWall"), "wall", 1.2, 5, 0.2),
-        f(t("tBump"), "bump", 0, 1.2, 0.1),
+        f(h("span", {}, t("tBump"), badge("tapa.bump")), "bump", 0, 1.2, 0.1),
         f(t("tWin"), "winMargin", -1, 2, 0.1),
       ),
     );
@@ -847,6 +871,7 @@ export function createSidebar() {
       "keycap",
       t("keycapSpec"),
       plateDiagram({
+        badge,
         values: { w: k.w, h: k.l, d: k.h, r: k.r },
         fields: [
           { key: "w", min: 8, max: 60, step: 0.5, label: "dimW", at: "w" },
@@ -979,6 +1004,33 @@ export function createSidebar() {
     );
   };
 
+  /** Everything the current build rests on that has no real data behind it, kept up to date as you edit. */
+  const unverifiedSection = () => {
+    const body = h("div", { class: "unv" });
+    const count = h("span", { class: "unv-count" });
+    const paintBody = () => {
+      const items = unverified(project.get());
+      count.textContent = items.length ? ` (${items.length})` : "";
+      count.className = items.length ? "unv-count warn" : "unv-count";
+      body.replaceChildren(
+        items.length
+          ? h("p", { class: "hint muted" }, t("unvIntro"))
+          : h("p", { class: "ok" }, t("unvNone")),
+        ...items.map((it) =>
+          h(
+            "div",
+            { class: "unv-row" },
+            h("span", {}, it.field ? t(it.field) : t(`unv.${it.key}`)),
+            it.field ? h("span", { class: "muted" }, `${it.value} mm`) : null,
+            staticBadge(it.source),
+          ),
+        ),
+      );
+    };
+    track(body, paintBody);
+    return section("unverified", h("span", {}, t("unvTitle"), count), body);
+  };
+
   const exportSection = () => {
     const p = project.get();
     const { part } = result.get();
@@ -1028,6 +1080,8 @@ export function createSidebar() {
               ? t("bedPlates", { n: packed.plates })
               : t("bedFit"),
         ),
+      unverified(p).length > 0 &&
+        h("p", { class: "warn" }, t("unvExport", { n: unverified(p).length })),
       h("p", { class: "hint muted" }, t("printHint")),
       h(
         "div",
@@ -1066,6 +1120,7 @@ export function createSidebar() {
       productSection(),
       ...by[product].map((fn) => fn()),
       colorSection(),
+      unverifiedSection(),
       exportSection(),
     ];
     const open = new Map(

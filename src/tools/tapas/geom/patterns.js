@@ -15,7 +15,7 @@ function rng(seed) {
   };
 }
 
-/** Polygon outlining a polyline of width `wd` (butt ends). */
+/** Polygon outlining a polyline of width `wd` (butt ends); `wd` may be a function of the point index. */
 function band(pts, wd) {
   const left = [];
   const right = [];
@@ -23,8 +23,9 @@ function band(pts, wd) {
     const a = pts[Math.max(0, i - 1)];
     const b = pts[Math.min(pts.length - 1, i + 1)];
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-    const nx = (-(b[1] - a[1]) / len) * (wd / 2);
-    const ny = ((b[0] - a[0]) / len) * (wd / 2);
+    const hw = (typeof wd === "function" ? wd(i / (pts.length - 1)) : wd) / 2;
+    const nx = (-(b[1] - a[1]) / len) * hw;
+    const ny = ((b[0] - a[0]) / len) * hw;
     left.push([pts[i][0] + nx, pts[i][1] + ny]);
     right.push([pts[i][0] - nx, pts[i][1] - ny]);
   }
@@ -156,10 +157,22 @@ export const PATTERNS = {
       ),
     );
   },
+  // Seigaiha fish scales: concentric arcs, each scale hidden behind the row in front of it.
   escamas: ({ kit, s, w, R }) => {
-    const t = Math.max(0.5, s * w * 0.14);
-    const ring = kit.csSub(kit.circle(s / 2, 0, 0, 32), kit.circle(s / 2 - t, 0, 0, 32));
-    return lattice(s, R, 0.5).map(([x, y]) => kit.own(ring.translate([x, y])));
+    const r = s / 2;
+    const t = Math.max(0.5, s * w * 0.09);
+    const gap = t * 0.8;
+    const rings = [kit.circle(r, 0, 0, 40)];
+    for (const f of [0.74, 0.48]) rings.push(kit.csSub(kit.circle(r * f + t / 2, 0, 0, 40), kit.circle(r * f - t / 2, 0, 0, 40)));
+    rings[0] = kit.csSub(rings[0], kit.circle(r - t, 0, 0, 40));
+    rings.push(kit.circle(r * 0.2, 0, 0, 24));
+    const scale = kit.csUnion(rings);
+    // The two scales of the next row down overlap this one's lower half.
+    const front = kit.csUnion(
+      [-1, 1].map((d) => kit.own(kit.circle(r + gap, 0, 0, 40).translate([d * r, -r]))),
+    );
+    const tile = kit.csSub(scale, front);
+    return lattice(s, R, 0.5).map(([x, y]) => kit.own(tile.translate([x, y])));
   },
   // Stepped fret (greca): a square wave in every row.
   greca: ({ kit, s, w, R }) => {
@@ -204,18 +217,37 @@ export const PATTERNS = {
     const sun = kit.csUnion(rays);
     return lattice(s * 1.1, R).map(([x, y]) => kit.own(sun.translate([x, y])));
   },
-  // Filete porteño-style double spiral: mirrored curls in alternating columns.
+  // Filete porteño: S-shaped scrolls with brush strokes that thin towards the curled tips and a
+  // bud at each tip, in brick rows that alternate upright and flipped.
   filete: ({ kit, s, w, R }) => {
-    const pts = [];
-    for (let th = 0.4; th < 3.3 * Math.PI; th += 0.3) {
-      const r = s * (0.05 + 0.07 * th);
-      pts.push([r * Math.cos(th), r * Math.sin(th)]);
+    const wmax = Math.max(0.6, s * w * 0.2);
+    const a = 0.22 * s;
+    const turns = 1.4;
+    const half = (cx, th0) => {
+      const out = [];
+      for (let k = 0; k <= 40; k++) {
+        const u = k / 40;
+        const r = a * (1 - 0.8 * u ** 0.85);
+        const th = th0 + u * turns * TAU;
+        out.push([cx + r * Math.cos(th), r * Math.sin(th)]);
+      }
+      return out;
+    };
+    const path = [...half(-a, 0).reverse(), ...half(a, Math.PI).slice(1)];
+    const taper = (t) => wmax * (0.25 + 0.75 * (1 - Math.abs(2 * t - 1) ** 0.9));
+    const tips = [path[0], path[path.length - 1]];
+    const up = kit.csUnion([
+      kit.poly(band(path, taper)),
+      ...tips.map(([x, y]) => kit.circle(wmax * 0.7, x, y, 14)),
+    ]);
+    const down = kit.own(up.mirror([0, 1]));
+    const pitch = s;
+    const rowH = 0.62 * s;
+    const out = [];
+    for (const [x, y, , j] of lattice(pitch, R, rowH / pitch)) {
+      out.push(kit.own((j & 2 ? down : up).translate([x, y])));
     }
-    const curl = kit.poly(band(pts, Math.max(0.5, s * w * 0.14)));
-    const flip = kit.own(curl.mirror([1, 0]));
-    return lattice(s * 1.1, R, 1).map(([x, y, i]) =>
-      kit.own((i & 1 ? flip : curl).translate([x, y])),
-    );
+    return out;
   },
 };
 

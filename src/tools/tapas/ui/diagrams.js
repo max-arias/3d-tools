@@ -19,10 +19,10 @@ const svgEl = (tag, attrs = {}) => {
 
 /** Field sets for plateDiagram. `key` is what onChange receives. */
 export const PLATE_FIELDS = [
-  { key: "w", min: 30, max: 300, step: 0.5, label: "dimW", at: "w" },
-  { key: "h", min: 30, max: 300, step: 0.5, label: "dimH", at: "h" },
-  { key: "d", min: 2, max: 30, step: 0.5, label: "dimD", at: "d" },
-  { key: "r", min: 0, max: 30, step: 0.5, label: "dimR", at: "r" },
+  { key: "w", min: 30, max: 300, step: 0.5, label: "dimW", at: "w", path: "plate.w" },
+  { key: "h", min: 30, max: 300, step: 0.5, label: "dimH", at: "h", path: "plate.h" },
+  { key: "d", min: 2, max: 30, step: 0.5, label: "dimD", at: "d", path: "plate.d" },
+  { key: "r", min: 0, max: 30, step: 0.5, label: "dimR", at: "r", path: "plate.r" },
 ];
 
 /**
@@ -37,6 +37,7 @@ export function plateDiagram({
   fields = PLATE_FIELDS,
   inner = null,
   windows = () => [],
+  badge = null,
   onChange,
 }) {
   const v = { ...values };
@@ -60,7 +61,13 @@ export function plateDiagram({
         draw();
       },
     });
-    boxes[f.at] = h("label", { class: "dim" }, h("span", { class: "dim-name" }, t(f.label)), input);
+    boxes[f.at] = h(
+      "label",
+      { class: "dim" },
+      h("span", { class: "dim-name" }, t(f.label)),
+      input,
+      f.path && badge ? badge(f.path) : null,
+    );
     wrap.append(boxes[f.at]);
   }
 

@@ -250,7 +250,24 @@ addStrings("es", {
     "Una ventana separada por cada módulo, con puentes entre ellas (por ejemplo, la tapa «2 módulos separados» de Sica).",
   winW: "Ancho de la ventana",
   "presetSource.maker":
-    "Medida de los planos o el catálogo del fabricante. Confirmala con calibre antes de imprimir.",
+    "Tamaños de los planos o el catálogo del fabricante. Lo que dice «est.» en el dibujo sigue siendo un estimado: medilo con calibre.",
+  "src.maker": "✓",
+  "src.shop": "tienda",
+  "src.estimate": "est.",
+  "src.user": "medido",
+  "srcTitle.maker": "Dato del plano o catálogo del fabricante.",
+  "srcTitle.shop": "Dato de una tienda online, no del fabricante: confirmalo con calibre.",
+  "srcTitle.estimate": "Estimado: no hay un dato real. Medí tu pieza y corregilo.",
+  "srcTitle.user": "Medido o ajustado por vos.",
+  unvTitle: "Verificación pendiente",
+  unvIntro:
+    "Estos valores no tienen un dato real detrás. Medí tu pieza con calibre y corregilos: al cambiar uno pasa a «medido».",
+  unvNone: "Todos los valores que usa esta pieza vienen del fabricante o los medíste vos.",
+  unvExport: "{n} valores sin verificar. Revisá «Verificación pendiente» antes de imprimir.",
+  "unv.static.slots": "Posición de las ranuras dentro de la cara de la toma",
+  "unv.static.snap": "Forma y posición de las trabas del encastre",
+  "unv.static.moduleWindows":
+    "Tamaño de la ventana de cada módulo (USB, datos, perilla, toma, teclón)",
 });
 
 addStrings("en", {
@@ -502,5 +519,21 @@ addStrings("en", {
     'A separate window per module, with bridges between them (for example Sica\'s "2 módulos separados" plate).',
   winW: "Window width",
   "presetSource.maker":
-    "Size from the manufacturer's drawings or catalogue. Confirm with calipers before printing.",
+    "Sizes from the manufacturer's drawings or catalogue. Anything marked “est.” on the drawing is still an estimate: measure it with calipers.",
+  "src.maker": "✓",
+  "src.shop": "shop",
+  "src.estimate": "est.",
+  "src.user": "measured",
+  "srcTitle.maker": "From the manufacturer's drawing or catalogue.",
+  "srcTitle.shop": "From an online shop, not the manufacturer: confirm with calipers.",
+  "srcTitle.estimate": "Estimate: there is no real data. Measure your part and correct it.",
+  "srcTitle.user": "Measured or set by you.",
+  unvTitle: "Still to verify",
+  unvIntro:
+    "These values have no real data behind them. Measure your part with calipers and correct them: changing one turns it into “measured”.",
+  unvNone: "Every value this part uses comes from the manufacturer or was measured by you.",
+  unvExport: "{n} unverified values. Check “Still to verify” before printing.",
+  "unv.static.slots": "Position of the slots inside the socket face",
+  "unv.static.snap": "Shape and position of the snap tabs",
+  "unv.static.moduleWindows": "Size of each module's window (USB, data, knob, socket, teclón)",
 });

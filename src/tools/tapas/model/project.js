@@ -1,5 +1,6 @@
 import LZString from "lz-string";
 import { MODULES, MODULE_IDS } from "./modules.js";
+import { FIELD_PATHS, SOURCE_IDS, defaultSources, presetSources } from "./provenance.js";
 import { PRESETS, presetById } from "./presets.js";
 import { SHAPE_IDS } from "../geom/shapes.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
@@ -16,6 +17,7 @@ export function defaultProject() {
     v: 1,
     product: "overlay",
     preset: p.id,
+    src: { ...defaultSources(), ...presetSources(p) },
     plate: { ...p.plate },
     mods: { pitch: p.mods.pitch, winW: p.mods.winW, slots: p.slots, margin: 0.6 },
     style: "modular",
@@ -74,6 +76,13 @@ const num = (v, lo, hi, fallback) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
 };
+/** Sources for the data fields: the preset's, then anything valid the project already recorded. */
+function sanitizeSources(raw, presetId) {
+  const out = { ...defaultSources(), ...presetSources(presetById(presetId)) };
+  for (const path of FIELD_PATHS) if (SOURCE_IDS.includes(raw?.[path])) out[path] = raw[path];
+  return out;
+}
+
 const hex = (v, fallback) => (/^#[0-9a-f]{6}$/i.test(v) ? v : fallback);
 const oneOf = (v, list, fallback) => (list.includes(v) ? v : fallback);
 
@@ -84,6 +93,11 @@ export function sanitize(raw) {
   const plate = r.plate ?? {};
   const mods = r.mods ?? {};
   const ov = r.overlay ?? {};
+  const presetId = oneOf(
+    r.preset,
+    PRESETS.map((p) => p.id),
+    d.preset,
+  );
   const slots = Math.round(num(mods.slots, 1, 6, d.mods.slots));
   const groupCount = Array.isArray(r.groups) ? Math.min(3, Math.max(1, r.groups.length)) : 1;
   const groups = Array.from({ length: groupCount }, (_, i) =>
@@ -97,11 +111,8 @@ export function sanitize(raw) {
   return {
     v: 1,
     product: oneOf(r.product, PRODUCTS, "overlay"),
-    preset: oneOf(
-      r.preset,
-      PRESETS.map((p) => p.id),
-      d.preset,
-    ),
+    preset: presetId,
+    src: sanitizeSources(r.src, presetId),
     plate: {
       w: num(plate.w, 30, 300, d.plate.w),
       h: num(plate.h, 30, 300, d.plate.h),

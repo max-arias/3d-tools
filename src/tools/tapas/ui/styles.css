@@ -594,3 +594,49 @@ select {
 .add-slot {
   margin: 1.5px 0;
 }
+
+.src {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: help;
+}
+.src-maker {
+  color: var(--success);
+}
+.src-user {
+  color: var(--accent-2);
+}
+.src-shop {
+  color: var(--muted);
+}
+.src-estimate {
+  color: #e0a82e;
+  font-weight: 600;
+}
+.dim .src {
+  margin: 0;
+  align-self: center;
+}
+.unv {
+  display: grid;
+  gap: 6px;
+}
+.unv-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.unv-count.warn,
+.warn {
+  color: #e0a82e;
+}
+p.warn {
+  margin: 0;
+}

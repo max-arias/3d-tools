@@ -10,6 +10,12 @@
 const CAMBRE = { pitch: 19, winW: 50.4 }; // Siglo XXII drawings: 4 modulos = 76 mm, window 50.4 mm wide
 const ARTE = { pitch: 18.7, winW: 50.4 }; // A.R.T.E. drawing: 4 modulos = 74.8 mm
 
+// Where each value comes from (see model/provenance.js); anything not listed is an estimate.
+const M = "maker";
+const S = "shop";
+const SRC_XXII = { "plate.w": M, "plate.h": M, "plate.r": M, "mods.pitch": M, "mods.winW": M }; // depth: estimate
+const SRC_SHOP = { "plate.w": S, "plate.h": S }; // size from a retailer; radius, depth, pitch, window estimated
+
 export const PRESETS = [
   {
     id: "cambre-xxii",
@@ -18,6 +24,7 @@ export const PRESETS = [
     mods: CAMBRE,
     slots: 3,
     groups: 1,
+    src: SRC_XXII,
     source: "maker",
   },
   {
@@ -27,6 +34,7 @@ export const PRESETS = [
     mods: CAMBRE,
     slots: 2,
     groups: 1,
+    src: SRC_XXII,
     source: "maker",
   },
   {
@@ -36,6 +44,7 @@ export const PRESETS = [
     mods: CAMBRE,
     slots: 4,
     groups: 2,
+    src: SRC_XXII,
     source: "maker",
   },
   {
@@ -45,6 +54,14 @@ export const PRESETS = [
     mods: ARTE,
     slots: 4,
     groups: 1,
+    src: {
+      "plate.w": M,
+      "plate.h": M,
+      "plate.d": M,
+      "plate.r": M,
+      "mods.pitch": M,
+      "mods.winW": M,
+    },
     source: "maker",
   },
   {
@@ -54,6 +71,7 @@ export const PRESETS = [
     mods: CAMBRE,
     slots: 3,
     groups: 1,
+    src: SRC_SHOP,
     source: "shop",
   },
   {
@@ -63,6 +81,7 @@ export const PRESETS = [
     mods: CAMBRE,
     slots: 3,
     groups: 1,
+    src: SRC_SHOP,
     source: "shop",
   },
   {
@@ -72,6 +91,7 @@ export const PRESETS = [
     mods: CAMBRE,
     slots: 3,
     groups: 1,
+    src: {},
     source: "estimate",
   },
   {
@@ -81,6 +101,7 @@ export const PRESETS = [
     mods: CAMBRE,
     slots: 3,
     groups: 1,
+    src: {},
     source: "estimate",
   },
   {
@@ -91,6 +112,7 @@ export const PRESETS = [
     groups: 1,
     style: "flat",
     layout: [["tecla", "tecla", "tecla"]],
+    src: { "plate.w": M, "plate.h": M },
     source: "maker",
   },
   {
@@ -101,6 +123,7 @@ export const PRESETS = [
     groups: 2,
     style: "flat",
     layout: [["tomaRanuras"], ["tomaRanuras"]],
+    src: { "plate.w": M, "plate.h": M },
     source: "maker",
   },
   { id: "custom", label: "Medidas propias", plate: null, slots: 3, groups: 1 },
