@@ -8,6 +8,7 @@ export default defineConfig({
         index: resolve(import.meta.dirname, "index.html"),
         gridfinity: resolve(import.meta.dirname, "gridfinity/index.html"),
         tapas: resolve(import.meta.dirname, "tapas/index.html"),
+        frames: resolve(import.meta.dirname, "frames/index.html"),
       },
     },
   },
