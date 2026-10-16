@@ -19,10 +19,10 @@ const svgEl = (tag, attrs = {}) => {
 
 /** Field sets for plateDiagram. `key` is what onChange receives. */
 export const PLATE_FIELDS = [
-  { key: "w", letter: "A", min: 30, max: 300, step: 0.5, label: "plateW", at: "w" },
-  { key: "h", letter: "B", min: 30, max: 300, step: 0.5, label: "plateH", at: "h" },
-  { key: "d", letter: "C", min: 2, max: 30, step: 0.5, label: "plateD", at: "d" },
-  { key: "r", letter: "R", min: 0, max: 30, step: 0.5, label: "plateR", at: "r" },
+  { key: "w", min: 30, max: 300, step: 0.5, label: "dimW", at: "w" },
+  { key: "h", min: 30, max: 300, step: 0.5, label: "dimH", at: "h" },
+  { key: "d", min: 2, max: 30, step: 0.5, label: "dimD", at: "d" },
+  { key: "r", min: 0, max: 30, step: 0.5, label: "dimR", at: "r" },
 ];
 
 /**
@@ -53,14 +53,14 @@ export function plateDiagram({
       min: f.min,
       max: f.max,
       step: f.step,
-      unit: "",
+      unit: "mm",
       onChange: (n) => {
         store[f.at] = n;
         onChange(f.key, n);
         draw();
       },
     });
-    boxes[f.at] = h("label", { class: "dim", title: t(f.label) }, h("b", {}, f.letter), input);
+    boxes[f.at] = h("label", { class: "dim" }, h("span", { class: "dim-name" }, t(f.label)), input);
     wrap.append(boxes[f.at]);
   }
 
@@ -81,17 +81,21 @@ export function plateDiagram({
       raw(w + m, 0, -m),
       raw(w + m, 0, hh + m),
       raw(-m, 0, hh + m),
-      raw(w + g + 2 * g, d, -g - g),
-      raw(-g - 3 * g, d, hh + 2 * g),
-      raw(w, d, hh + g / 2),
+      raw(-g, d, bz0),
+      raw(-g, d, bz1),
+      raw(ax0, d, -g),
+      raw(ax1, d, -g),
+      raw(w + g, 0, 0),
     ];
+    // Pixel room around the content for the labelled boxes.
+    const PAD = { l: 92, r: 76, t: 44, b: 66 };
     const xs = pts.map((p) => p[0]);
     const ys = pts.map((p) => p[1]);
     const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-    const k = Math.min((W - 20) / (x1 - x0), 300 / (y1 - y0));
-    const H = Math.round((y1 - y0) * k + 20);
-    const ox = 10 - x0 * k;
-    const oy = 10 - y0 * k;
+    const k = Math.min((W - PAD.l - PAD.r) / (x1 - x0), 280 / (y1 - y0));
+    const H = Math.round((y1 - y0) * k + PAD.t + PAD.b);
+    const ox = PAD.l - x0 * k;
+    const oy = PAD.t - y0 * k;
     const P = (x, y, z) => {
       const [px, py] = raw(x, y, z);
       return [px * k + ox, py * k + oy];
@@ -194,14 +198,19 @@ export function plateDiagram({
     const at = (key, p, dx = 0, dy = 0) => {
       const box = boxes[key];
       if (!box) return;
-      box.style.left = `${((p[0] + dx) / W) * 100}%`;
-      box.style.top = `${((p[1] + dy) / H) * 100}%`;
+      const cx = Math.min(W - 52, Math.max(52, p[0] + dx));
+      const cy = Math.min(H - 26, Math.max(26, p[1] + dy));
+      box.style.left = `${(cx / W) * 100}%`;
+      box.style.top = `${(cy / H) * 100}%`;
+      return [cx, cy];
     };
     const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    at("w", mid(A1, A2), 0, 12);
-    at("h", mid(B1, B2), -22, 0);
-    at("d", mid(C1, C2), 30, 14);
-    at("r", lead, -2, -4);
+    at("w", mid(A1, A2), 0, 30);
+    at("h", mid(B1, B2), -50, 0);
+    const cMid = mid(C1, C2);
+    const cBox = at("d", cMid, 24, -52);
+    if (cBox) line(cMid, [cBox[0], cBox[1] + 22]);
+    at("r", lead, -6, -16);
     wrap.style.aspectRatio = `${W} / ${H}`;
   }
 

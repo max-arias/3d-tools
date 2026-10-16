@@ -176,8 +176,7 @@ addStrings("es", {
   spanN: "ocupa {n}",
   frameFull: "El bastidor está completo",
   slotsOverHint: "Cada módulo ocupa un lugar; una toma ocupa 2.",
-  dimHint:
-    "Medí con calibre la tapa de frente. Escribí cada valor sobre el dibujo: A ancho, B alto, C cuánto sobresale de la pared, R radio de las esquinas.",
+  dimHint: "Medí con calibre la tapa de frente y escribí cada medida sobre el dibujo.",
   pick: "Elegí un módulo",
   swap: "Cambiar por {name}",
   addHere: "Agregar {name}",
@@ -185,9 +184,16 @@ addStrings("es", {
   overBy: "Se pasa por {n}. Quitá un módulo o subí «Módulos por bastidor».",
   fine: "Ajustes finos",
   tapaDimHint:
-    "Medí el bastidor (lo que queda debajo de la tapa): A ancho, B alto, C profundidad del faldón. La línea de puntos es el bastidor.",
-  keyDimHint:
-    "Medí la tecla de frente: A ancho, B largo, C cuánto sobresale, R radio de las esquinas.",
+    "Medí el bastidor, lo que queda debajo de la tapa. La línea de puntos es el bastidor.",
+  keyDimHint: "Medí la tecla de frente y escribí cada medida sobre el dibujo.",
+  dimW: "Ancho",
+  dimH: "Alto",
+  dimD: "Sobresale",
+  dimR: "Radio de esquina",
+  dimBoxW: "Ancho del bastidor",
+  dimBoxH: "Alto del bastidor",
+  dimSkirt: "Profundidad del faldón",
+  dimKeyL: "Largo",
 });
 
 addStrings("en", {
@@ -365,15 +371,21 @@ addStrings("en", {
   frameFull: "The frame is full",
   slotsOverHint: "Each module takes one slot; a socket takes 2.",
   dimHint:
-    "Measure the plate from the front with calipers and type each value on the drawing: A width, B height, C how far it stands out, R corner radius.",
+    "Measure the plate from the front with calipers and type each measurement on the drawing.",
   pick: "Pick a module",
   swap: "Swap for {name}",
   addHere: "Add {name}",
   noRoom: "{name} takes {n} slots, {free} left",
   overBy: "Over by {n}. Remove a module or raise “Modules per frame”.",
   fine: "Fine tuning",
-  tapaDimHint:
-    "Measure the bastidor (what sits under the plate): A width, B height, C skirt depth. The dashed line is the bastidor.",
-  keyDimHint:
-    "Measure the key from the front: A width, B length, C how far it stands out, R corner radius.",
+  tapaDimHint: "Measure the bastidor, what sits under the plate. The dashed line is the bastidor.",
+  keyDimHint: "Measure the key from the front and type each measurement on the drawing.",
+  dimW: "Width",
+  dimH: "Height",
+  dimD: "Stands out",
+  dimR: "Corner radius",
+  dimBoxW: "Bastidor width",
+  dimBoxH: "Bastidor height",
+  dimSkirt: "Skirt depth",
+  dimKeyL: "Length",
 });

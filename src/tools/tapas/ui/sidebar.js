@@ -467,9 +467,9 @@ export function createSidebar() {
         values: { w: p.plate.w, h: p.plate.h, d: p.tapa.skirt, r: p.plate.r },
         inner: { w: p.tapa.boxW, h: p.tapa.boxH },
         fields: [
-          { key: "boxW", letter: "A", min: 30, max: 200, step: 0.5, label: "boxW", at: "w" },
-          { key: "boxH", letter: "B", min: 30, max: 250, step: 0.5, label: "boxH", at: "h" },
-          { key: "skirt", letter: "C", min: 2, max: 20, step: 0.5, label: "tSkirt", at: "d" },
+          { key: "boxW", min: 30, max: 200, step: 0.5, label: "dimBoxW", at: "w" },
+          { key: "boxH", min: 30, max: 250, step: 0.5, label: "dimBoxH", at: "h" },
+          { key: "skirt", min: 2, max: 20, step: 0.5, label: "dimSkirt", at: "d" },
         ],
         windows: () =>
           layoutModules(project.get()).map((m) => ({ x: m.x, y: m.y, win: MODULES[m.type].win })),
@@ -529,10 +529,10 @@ export function createSidebar() {
       plateDiagram({
         values: { w: k.w, h: k.l, d: k.h, r: k.r },
         fields: [
-          { key: "w", letter: "A", min: 8, max: 60, step: 0.5, label: "kW", at: "w" },
-          { key: "l", letter: "B", min: 8, max: 80, step: 0.5, label: "kL", at: "h" },
-          { key: "h", letter: "C", min: 2, max: 20, step: 0.5, label: "kH", at: "d" },
-          { key: "r", letter: "R", min: 0, max: 15, step: 0.5, label: "kR", at: "r" },
+          { key: "w", min: 8, max: 60, step: 0.5, label: "dimW", at: "w" },
+          { key: "l", min: 8, max: 80, step: 0.5, label: "dimKeyL", at: "h" },
+          { key: "h", min: 2, max: 20, step: 0.5, label: "dimD", at: "d" },
+          { key: "r", min: 0, max: 15, step: 0.5, label: "dimR", at: "r" },
         ],
         onChange: (key, v) => update((q) => (q.keycap[key] = v)),
       }),

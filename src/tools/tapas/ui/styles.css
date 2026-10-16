@@ -372,27 +372,38 @@ select {
 .dim {
   position: absolute;
   transform: translate(-50%, -50%);
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 6px;
+  gap: 1px;
+  padding: 3px 6px;
   border: 1px solid var(--accent-2);
   border-radius: var(--radius);
   background: var(--panel);
+  text-align: center;
 }
-.dim b {
-  color: var(--accent-2);
+.dim-name {
   font-size: 11px;
+  line-height: 1.15;
+  color: var(--accent-text);
+  max-width: 96px;
+}
+.dim .num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
 }
 .dim .num input {
-  width: 46px;
-  padding: 2px 3px;
+  width: 48px;
+  padding: 1px 3px;
   border: 0;
   background: transparent;
   text-align: right;
 }
 .dim .unit {
-  display: none;
+  display: inline;
+  color: var(--muted);
+  font-size: 11px;
 }
 .palette {
   display: flex;
