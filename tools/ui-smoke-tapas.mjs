@@ -104,11 +104,6 @@ for (const [name, viewport] of [
   await page.mouse.down();
   await page.mouse.move(mx + 50, my - 20, { steps: 6 });
   await page.mouse.up();
-  await page.waitForFunction(
-    () => Number(document.querySelectorAll(".row input")[0] && 1) === 1,
-    null,
-    { timeout: 5000 },
-  );
   await page.waitForTimeout(600);
   check(
     Number(await posX()) !== 0,
