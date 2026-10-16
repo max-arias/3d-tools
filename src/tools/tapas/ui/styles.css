@@ -439,8 +439,8 @@ select {
 .cells {
   position: relative;
   display: grid;
-  grid-template-rows: repeat(var(--rows), 40px);
-  gap: 3px;
+  grid-template-rows: repeat(var(--rows), 20px);
+  gap: 0;
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -585,4 +585,12 @@ select {
 }
 .hintbar:empty {
   display: none;
+}
+.cells.flat {
+  grid-template-rows: repeat(var(--rows), 40px);
+}
+.cell,
+.blk,
+.add-slot {
+  margin: 1.5px 0;
 }

@@ -1,10 +1,10 @@
 import { h } from "../../../shell/h.js";
 import { checkbox, numField, row, segmented, slider, stepper } from "../../../shell/widgets.js";
 import { langStore, t } from "../lib/i18n.js";
-import { MODULES } from "../model/modules.js";
-import { PRESETS, presetById } from "../model/presets.js";
+import { FLAT_IDS, FLAT_MAX } from "../model/modules.js";
+import { PRESETS, presetById, presetLayout } from "../model/presets.js";
 import { ICON_IDS } from "../geom/icons.js";
-import { layoutModules } from "../geom/overlay.js";
+import { facePieces } from "../geom/layout.js";
 import { ArtError, drawThumb, hasRasterSource, importFile, retrace } from "./art.js";
 import { baysDiagram, plateDiagram } from "./diagrams.js";
 import { PATTERN_MODES, PRODUCTS } from "../model/project.js";
@@ -193,6 +193,13 @@ export function createSidebar() {
     );
   };
 
+  /** Windows and slits for the drawings; a tapa is always drawn as a modular plate. */
+  const diagramPieces = (modular = false) => {
+    const p = project.get();
+    const { windows, slits } = facePieces(modular ? { ...p, style: "modular" } : p);
+    return [...windows, ...slits.map((slit) => ({ slit }))];
+  };
+
   const measuresSection = () => {
     const p = project.get();
     const preset = presetById(p.preset);
@@ -205,9 +212,8 @@ export function createSidebar() {
             q.preset = next.id;
             if (next.plate) q.plate = { ...next.plate };
             q.mods.slots = next.slots;
-            q.groups = Array.from({ length: next.groups }, () =>
-              ["tecla", "tecla", "tecla"].slice(0, next.slots),
-            );
+            if (next.plate) q.style = next.style ?? "modular";
+            q.groups = presetLayout(next).map((g) => [...g]);
           });
           paint();
         },
@@ -218,11 +224,10 @@ export function createSidebar() {
       "measures",
       t("measures"),
       row(t("preset"), presetSelect),
-      preset.source && h("p", { class: "hint muted" }, t("presetUnverified")),
+      preset.source && h("p", { class: "hint muted" }, t(`presetSource.${preset.source}`)),
       plateDiagram({
         values: p.plate,
-        windows: () =>
-          layoutModules(project.get()).map((m) => ({ x: m.x, y: m.y, win: MODULES[m.type].win })),
+        windows: () => diagramPieces(),
         onChange: (key, v) => update((q) => (q.plate[key] = v)),
       }),
       h("p", { class: "hint muted" }, t("dimHint")),
@@ -243,13 +248,41 @@ export function createSidebar() {
 
   const modulesSection = () => {
     const p = project.get();
+    const flat = p.style === "flat" && p.product === "overlay";
     return section(
       "modules",
       t("modules"),
-      h("p", { class: "hint muted" }, t("modulesHint")),
+      p.product === "overlay" &&
+        row(
+          t("plateStyle"),
+          segmented({
+            value: p.style,
+            options: [
+              { value: "modular", label: t("styleModular") },
+              { value: "flat", label: t("styleFlat") },
+            ],
+            onChange: (v) => {
+              update((q) => {
+                q.style = v;
+                if (v === "flat") {
+                  // flat plates have no fixed slots and no teclon: keep what still makes sense
+                  q.groups = q.groups.map((g) => {
+                    const kept = g.filter((id) => FLAT_IDS.includes(id)).slice(0, FLAT_MAX);
+                    return kept.length ? kept : ["tecla"];
+                  });
+                }
+              });
+              paint();
+            },
+          }),
+        ),
+      p.product === "overlay" &&
+        h("p", { class: "hint muted" }, t(flat ? "styleFlatHint" : "styleModularHint")),
+      h("p", { class: "hint muted" }, t(flat ? "modulesHintFlat" : "modulesHint")),
       baysDiagram({
         groups: p.groups,
         slots: p.mods.slots,
+        flat,
         onChange: (g, next) => {
           update((q) => (q.groups[g] = next));
           paint();
@@ -269,43 +302,60 @@ export function createSidebar() {
             onChange: (n) => {
               update((q) => {
                 while (q.groups.length < n)
-                  q.groups.push(["tecla", "tecla", "tecla"].slice(0, q.mods.slots));
+                  q.groups.push(
+                    flat ? ["tecla"] : ["tecla", "tecla", "tecla"].slice(0, q.mods.slots),
+                  );
                 q.groups.length = n;
               });
               paint();
             },
           }),
         ),
-        h(
-          "span",
-          {},
-          t("slots"),
-          stepper({
-            value: p.mods.slots,
-            min: 1,
-            max: 6,
-            onChange: (n) => {
-              update((q) => (q.mods.slots = n));
-              paint();
-            },
-          }),
-        ),
+        !flat &&
+          h(
+            "span",
+            {},
+            t("slots"),
+            stepper({
+              value: p.mods.slots,
+              min: 1,
+              max: 6,
+              onChange: (n) => {
+                update((q) => (q.mods.slots = n));
+                paint();
+              },
+            }),
+          ),
       ),
       h(
         "details",
         { class: "help" },
         h("summary", {}, t("fine")),
-        row(
-          t("pitch"),
-          numField({
-            value: p.mods.pitch,
-            min: 15,
-            max: 40,
-            step: 0.5,
-            unit: "mm",
-            onChange: (v) => update((q) => (q.mods.pitch = v)),
-          }),
-        ),
+        !flat &&
+          row(
+            t("pitch"),
+            numField({
+              value: p.mods.pitch,
+              min: 15,
+              max: 40,
+              step: 0.5,
+              unit: "mm",
+              onChange: (v) => update((q) => (q.mods.pitch = v)),
+            }),
+          ),
+        flat &&
+          row(
+            t("slitWidth"),
+            numField({
+              value: p.flat.slit,
+              min: 0.3,
+              max: 2,
+              step: 0.1,
+              unit: "mm",
+              onChange: (v) => update((q) => (q.flat.slit = v)),
+            }),
+            t("slitHint"),
+          ),
         row(
           t("margin"),
           numField({
@@ -705,8 +755,7 @@ export function createSidebar() {
           { key: "boxH", min: 30, max: 250, step: 0.5, label: "dimBoxH", at: "h" },
           { key: "skirt", min: 2, max: 20, step: 0.5, label: "dimSkirt", at: "d" },
         ],
-        windows: () =>
-          layoutModules(project.get()).map((m) => ({ x: m.x, y: m.y, win: MODULES[m.type].win })),
+        windows: () => diagramPieces(true),
         onChange: (key, v) => update((q) => (q.tapa[key] = v)),
       }),
       h("p", { class: "hint muted" }, t("tapaDimHint")),

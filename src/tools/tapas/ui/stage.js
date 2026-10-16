@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { h } from "../../../shell/h.js";
-import { MODULES } from "../model/modules.js";
-import { layoutModules } from "../geom/overlay.js";
+import { MODULES, SOCKET_SLOTS } from "../model/modules.js";
+import { facePieces, layoutModules } from "../geom/layout.js";
 import { langStore, t } from "../lib/i18n.js";
 import { drawArt } from "./art.js";
 import { artBox, dragPlacement, insideArt, placementKey, wheelSize } from "./drag.js";
@@ -82,21 +82,30 @@ function moduleModel(type) {
       bevelSize: 0.5,
       bevelSegments: 2,
     });
-  if (type === "tecla") {
+  if (type === "tecla" || type === "teclon" || type === "teclonMedio") {
     add(slab(win.x - 3.5, win.y - 2.4, 2, 2.2), face);
     g.rotation.x = 0.07; // a rocker key rests slightly tilted
-  } else if (type === "toma") {
-    add(
-      new THREE.CylinderGeometry(win.d / 2 - 0.8, win.d / 2 - 0.8, 1.6, 48).rotateX(Math.PI / 2),
-      face,
-      0,
-      0,
-      0.8,
-    );
-    const slot = new THREE.BoxGeometry(2, 9.5, 0.6);
-    add(slot, dark, -8, 4, 1.6, 0.5);
-    add(slot, dark, 8, 4, 1.6, -0.5);
-    add(slot, dark, 0, -8, 1.6);
+  } else if (type === "toma" || type === "tomaRanuras") {
+    // "toma" has a round face in a window; "tomaRanuras" is the flat face with only its slots.
+    const withFace = type === "toma";
+    if (withFace)
+      add(
+        new THREE.CylinderGeometry(win.d / 2 - 0.8, win.d / 2 - 0.8, 1.6, 48).rotateX(Math.PI / 2),
+        face,
+        0,
+        0,
+        0.8,
+      );
+    // Seen from the front: left slot "/", right "\", earth slot below (design x runs the other way).
+    for (const sl of SOCKET_SLOTS)
+      add(
+        new THREE.BoxGeometry(sl.w, sl.l, 0.6),
+        dark,
+        -sl.x,
+        sl.y,
+        withFace ? 1.6 : 0.7,
+        (-sl.ang * Math.PI) / 180,
+      );
   } else if (type === "usb") {
     add(slab(win.x - 4, win.y - 2.5, 1.5, 1.6), face);
     add(new THREE.BoxGeometry(12, 5.5, 0.6), dark, -7, 0, 2.2);
@@ -379,12 +388,25 @@ export function createStage() {
     stockPlate.add(plate);
     // A replacement tapa leaves the modules where the new face sits; everything else sits on the plate.
     const base = p.product === "tapa" ? p.tapa.skirt : d;
+    // A flat (Milan style) plate has no separate key modules: the keys are parts of its face,
+    // marked by fine grooves, and sockets show only their slots.
+    const flat = p.style === "flat" && p.product === "overlay";
     for (const m of layoutModules(p)) {
+      if (flat && MODULES[m.type].key) continue;
       const model = moduleModel(m.type);
       if (!model) continue;
       model.position.set(-m.x, m.y, base - 0.6); // the cover is turned over, so plate x runs the other way
       stockMods.add(model);
     }
+    if (flat)
+      for (const sl of facePieces(p).slits) {
+        const groove = new THREE.Mesh(
+          new THREE.BoxGeometry(Math.min(w, sl.x1 - sl.x0), 0.7, 0.5),
+          std("#9b9890", 0.9),
+        );
+        groove.position.set(-(sl.x0 + sl.x1) / 2, sl.y, d + 0.02);
+        stockMods.add(groove);
+      }
   }
 
   // ---- what is visible --------------------------------------------------------------------------

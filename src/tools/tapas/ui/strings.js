@@ -223,6 +223,25 @@ addStrings("es", {
   artRemove: "Quitar la imagen",
   moveHint:
     "Arrastrá la imagen para moverla. Shift + rueda cambia su tamaño. Lo que sale de la tapa o queda detrás de las ventanas no se imprime.",
+  plateStyle: "Tipo de placa",
+  styleModular: "Con ventanas",
+  styleFlat: "Plana (la tecla es la cara)",
+  styleModularHint:
+    "Sistema modular (Cambre, Jeluz, Sica, Kalop): la tapa tiene una ventana por módulo y la tecla asoma.",
+  styleFlatHint:
+    "Estilo Milán, sin marco: la cubierta tapa toda la cara. Se hace un corte fino entre teclas para que cada una se pueda apretar, y las tomas dejan abiertas solo sus ranuras.",
+  modulesHintFlat:
+    "En una placa plana cada módulo ocupa una parte igual de la cara: un punto es toda la cara, cuatro puntos son cuatro teclas iguales.",
+  equalShares: "{n} partes iguales",
+  slitWidth: "Ancho del corte entre teclas",
+  slitHint: "El corte llega hasta el borde de la cubierta, que mantiene las piezas unidas.",
+  "m.teclon": "Teclón (toda la tapa)",
+  "m.teclonMedio": "½ teclón",
+  "m.tomaRanuras": "Toma (solo ranuras)",
+  "presetSource.maker":
+    "Medida del catálogo del fabricante. Confirmala con calibre antes de imprimir.",
+  "presetSource.shop": "Medida de una tienda online (no del fabricante). Confirmala con calibre.",
+  "presetSource.estimate": "Valor estimado: medí tu tapa con calibre y ajustá abajo.",
 });
 
 addStrings("en", {
@@ -446,4 +465,24 @@ addStrings("en", {
   artRemove: "Remove the image",
   moveHint:
     "Drag the image to move it. Shift + wheel resizes it. Whatever leaves the plate or sits behind the windows is not printed.",
+  plateStyle: "Plate type",
+  styleModular: "With windows",
+  styleFlat: "Flat (the key is the face)",
+  styleModularHint:
+    "Modular system (Cambre, Jeluz, Sica, Kalop): the plate has one window per module and the key pokes through.",
+  styleFlatHint:
+    "Milan style, frameless: the cover hides the whole face. A thin slit between keys lets each one be pressed, and sockets leave only their slots open.",
+  modulesHintFlat:
+    "On a flat plate every module takes an equal share of the face: one punto is the whole face, four puntos are four equal keys.",
+  equalShares: "{n} equal parts",
+  slitWidth: "Slit width between keys",
+  slitHint: "The slit runs to the cover's edge, which holds the pieces together.",
+  "m.teclon": "Teclón (whole plate)",
+  "m.teclonMedio": "½ teclón",
+  "m.tomaRanuras": "Socket (slots only)",
+  "presetSource.maker":
+    "Size from the manufacturer's catalogue. Confirm with calipers before printing.",
+  "presetSource.shop":
+    "Size from an online shop listing (not the manufacturer). Confirm with calipers.",
+  "presetSource.estimate": "Estimated value: measure your plate with calipers and adjust below.",
 });

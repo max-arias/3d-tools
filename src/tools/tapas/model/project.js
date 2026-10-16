@@ -18,6 +18,8 @@ export function defaultProject() {
     preset: p.id,
     plate: { ...p.plate },
     mods: { pitch: 22.5, slots: p.slots, margin: 0.6 },
+    style: "modular",
+    flat: { slit: 0.8 },
     groups: [["tecla", "tecla", "tecla"]],
     overlay: { shape: "rounded", corner: 6, wall: 2.4, face: 2, clearance: 0.3 },
     printer: { x: 256, y: 256 },
@@ -110,6 +112,8 @@ export function sanitize(raw) {
       slots,
       margin: num(mods.margin, 0, 3, d.mods.margin),
     },
+    style: r.style === "flat" ? "flat" : "modular",
+    flat: { slit: num(r.flat?.slit, 0.3, 2, d.flat.slit) },
     groups,
     overlay: {
       shape: oneOf(ov.shape, SHAPE_IDS, d.overlay.shape),

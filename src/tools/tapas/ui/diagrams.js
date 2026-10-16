@@ -2,7 +2,7 @@
 // the module frames where you tap a slot to place a module.
 import { h } from "../../../shell/h.js";
 import { numField } from "../../../shell/widgets.js";
-import { MODULES, MODULE_IDS } from "../model/modules.js";
+import { FLAT_IDS, FLAT_MAX, MODULES, MODULE_IDS } from "../model/modules.js";
 import { usedSlots } from "../model/project.js";
 import { t } from "../lib/i18n.js";
 
@@ -132,12 +132,42 @@ export function plateDiagram({
     }
     const facePlane = plane(d);
     for (const mod of windows()) {
-      const cx = w / 2 + mod.x;
-      const cy = hh / 2 + mod.y;
+      if (mod.slit) {
+        // a flat plate's slit between two keys: a thin line across the face
+        const sl = mod.slit;
+        const x0 = Math.max(0, w / 2 - sl.x1);
+        const x1 = Math.min(w, w / 2 - sl.x0);
+        add("rect", {
+          x: x0,
+          y: hh / 2 + sl.y - 0.4,
+          width: x1 - x0,
+          height: 0.8,
+          transform: facePlane,
+          class: "win",
+        });
+        continue;
+      }
       const win = mod.win;
       if (!win) continue;
+      const cx = w / 2 - mod.x; // seen from the front, design x runs the other way
+      const cy = hh / 2 + mod.y;
       if (win.kind === "circle")
         add("circle", { cx, cy, r: win.d / 2, transform: facePlane, class: "win" });
+      else if (win.kind === "slots")
+        for (const sl of win.slots) {
+          // mirrored along x, so the lean flips with it: the left slot leans "/", the right "\"
+          const sx = cx - sl.x;
+          const sy = cy + sl.y;
+          add("rect", {
+            x: sx - sl.w / 2,
+            y: sy - sl.l / 2,
+            width: sl.w,
+            height: sl.l,
+            rx: sl.w / 2,
+            transform: `${facePlane} rotate(${-sl.ang} ${sx} ${sy})`,
+            class: "win",
+          });
+        }
       else
         add("rect", {
           x: cx - win.x / 2,
@@ -218,27 +248,41 @@ export function plateDiagram({
   return wrap;
 }
 
-const GLYPH = { tecla: "▭", toma: "◉", usb: "▤", rj45: "▦", perilla: "◍", ciego: "▢" };
+const GLYPH = {
+  tecla: "▭",
+  teclon: "▮",
+  teclonMedio: "▯",
+  toma: "◉",
+  tomaRanuras: "⁖",
+  usb: "▤",
+  rj45: "▦",
+  perilla: "◍",
+  ciego: "▢",
+};
 
 /**
  * One column per module frame. Pick a type in the palette, then tap an empty slot to add it or a
  * placed module to swap it. Modules past the frame's capacity are drawn in red below it.
+ * `flat`: a flat plate has no fixed slots; every module takes an equal share of the face.
+ * Rows are half a slot tall, so a half teclon (1.5 slots) fits the grid.
  */
-export function baysDiagram({ groups, slots, onChange }) {
+export function baysDiagram({ groups, slots, flat = false, onChange }) {
   let active = "tecla";
   const wrap = h("div", { class: "bays-wrap" });
+  const ids = flat ? FLAT_IDS : MODULE_IDS;
 
   const palette = () =>
     h(
       "div",
       { class: "palette", role: "group", "aria-label": t("pick") },
-      MODULE_IDS.map((id) =>
+      ids.map((id) =>
         h(
           "button",
           {
             class: "pal",
             "aria-pressed": String(active === id),
-            title: MODULES[id].span > 1 ? t("spanN", { n: MODULES[id].span }) : undefined,
+            title:
+              !flat && MODULES[id].span !== 1 ? t("spanN", { n: MODULES[id].span }) : undefined,
             onclick: () => {
               active = id;
               render();
@@ -246,59 +290,110 @@ export function baysDiagram({ groups, slots, onChange }) {
           },
           h("span", { class: "glyph" }, GLYPH[id]),
           t(`m.${id}`),
-          MODULES[id].span > 1 ? h("small", {}, `×${MODULES[id].span}`) : null,
+          !flat && MODULES[id].span !== 1 ? h("small", {}, `×${MODULES[id].span}`) : null,
         ),
       ),
     );
 
+  const removeBtn = (g, group, i) =>
+    h(
+      "button",
+      {
+        class: "x",
+        title: t("remove"),
+        "aria-label": t("remove"),
+        onclick: () =>
+          onChange(
+            g,
+            group.filter((_, j) => j !== i),
+          ),
+      },
+      "×",
+    );
+  const swapBtn = (g, group, i, type) =>
+    h(
+      "button",
+      {
+        class: "blk-main",
+        title: t("swap", { name: t(`m.${active}`) }),
+        onclick: () =>
+          onChange(
+            g,
+            group.map((m, j) => (j === i ? active : m)),
+          ),
+      },
+      h("span", { class: "glyph" }, GLYPH[type]),
+      t(`m.${type}`),
+    );
+
+  /** Flat plate: the modules share the face equally, so each is one row of the same height. */
+  function flatBay(group, g) {
+    const room = group.length < FLAT_MAX;
+    const rows = Math.max(1, group.length + (room ? 1 : 0));
+    const body = h("div", { class: "cells flat", style: `--rows:${rows}` });
+    group.forEach((type, i) =>
+      body.append(
+        h(
+          "div",
+          { class: "blk", dataset: { type }, style: `grid-row:${i + 1}` },
+          swapBtn(g, group, i, type),
+          group.length > 1 ? removeBtn(g, group, i) : null,
+        ),
+      ),
+    );
+    if (room)
+      body.append(
+        h(
+          "button",
+          {
+            class: "add-slot",
+            style: `grid-row:${group.length + 1}`,
+            title: t("addHere", { name: t(`m.${active}`) }),
+            onclick: () => onChange(g, [...group, active]),
+          },
+          `+ ${t(`m.${active}`)}`,
+        ),
+      );
+    return h(
+      "div",
+      { class: "bay" },
+      h(
+        "div",
+        { class: "bay-head" },
+        h("b", {}, t("group", { n: g + 1 })),
+        h("small", { class: "muted" }, t("equalShares", { n: group.length })),
+      ),
+      body,
+    );
+  }
+
   function bay(group, g) {
+    if (flat) return flatBay(group, g);
     const used = usedSlots(group);
-    const rows = Math.max(slots, used);
+    const rows = Math.ceil(Math.max(slots, used) * 2);
     const body = h("div", { class: "cells", style: `--rows:${rows}` });
     // Empty slot outlines first, so blocks sit on top.
-    for (let i = 0; i < rows; i++)
+    for (let i = 0; i < Math.ceil(Math.max(slots, used)); i++)
       body.append(
-        h("span", { class: `cell${i >= slots ? " over" : ""}`, style: `grid-row:${i + 1}` }),
+        h("span", {
+          class: `cell${i >= slots ? " over" : ""}`,
+          style: `grid-row:${i * 2 + 1} / span 2`,
+        }),
       );
     let cursor = 0;
     group.forEach((type, i) => {
       const span = MODULES[type].span;
-      const over = cursor + span > slots;
+      const over = cursor + span > slots + 1e-9;
       body.append(
         h(
           "div",
           {
             class: `blk${over ? " over" : ""}`,
             dataset: { type },
-            style: `grid-row:${cursor + 1} / span ${span}`,
+            style: `grid-row:${Math.round(cursor * 2) + 1} / span ${Math.round(span * 2)}`,
           },
-          h(
-            "button",
-            {
-              class: "blk-main",
-              title: t("swap", { name: t(`m.${active}`) }),
-              onclick: () => {
-                const next = group.map((m, j) => (j === i ? active : m));
-                onChange(g, next);
-              },
-            },
-            h("span", { class: "glyph" }, GLYPH[type]),
-            t(`m.${type}`),
-          ),
-          h(
-            "button",
-            {
-              class: "x",
-              title: t("remove"),
-              "aria-label": t("remove"),
-              onclick: () =>
-                onChange(
-                  g,
-                  group.filter((_, j) => j !== i),
-                ),
-            },
-            "×",
-          ),
+          swapBtn(g, group, i, type),
+          removeBtn(g, group, i),
         ),
       );
       cursor += span;
@@ -306,21 +401,21 @@ export function baysDiagram({ groups, slots, onChange }) {
     // Free slots become add buttons, one per remaining slot.
     const free = slots - used;
     const need = MODULES[active].span;
-    if (free > 0) {
+    if (free > 1e-9) {
       body.append(
         h(
           "button",
           {
             class: "add-slot",
-            style: `grid-row:${used + 1} / span ${free}`,
-            disabled: need > free,
+            style: `grid-row:${Math.round(used * 2) + 1} / span ${Math.round(free * 2)}`,
+            disabled: need > free + 1e-9,
             title:
-              need > free
+              need > free + 1e-9
                 ? t("noRoom", { name: t(`m.${active}`), n: need, free })
                 : t("addHere", { name: t(`m.${active}`) }),
             onclick: () => onChange(g, [...group, active]),
           },
-          need > free
+          need > free + 1e-9
             ? t("noRoom", { name: t(`m.${active}`), n: need, free })
             : `+ ${t(`m.${active}`)}`,
         ),
@@ -341,6 +436,7 @@ export function baysDiagram({ groups, slots, onChange }) {
   }
 
   function render() {
+    if (!ids.includes(active)) active = "tecla";
     wrap.replaceChildren(
       palette(),
       h(

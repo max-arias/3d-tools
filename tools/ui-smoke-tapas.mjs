@@ -33,6 +33,34 @@ for (const [name, viewport] of [
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/tapas-${name}-default.png` });
 
+  // Plate types: the Milan preset switches to the flat editor (equal shares), and back again.
+  await page
+    .locator('[data-sec="measures"] select')
+    .selectOption({ label: "Milán (Macroled), plana" });
+  await page.waitForSelector(".cells.flat", { timeout: 15000 });
+  check(
+    (await page.locator(".cells.flat .blk").count()) === 3,
+    `${name}: Milán preset gives three equal keys`,
+  );
+  await page
+    .locator('[data-sec="measures"] select')
+    .selectOption({ label: "Milán doble toma (horizontal)" });
+  await page.waitForFunction(() => document.querySelectorAll(".cells.flat").length === 2, null, {
+    timeout: 15000,
+  });
+  check(true, `${name}: double-socket preset gives two flat frames`);
+  await page
+    .locator('[data-sec="measures"] select')
+    .selectOption({ label: "Cambre Siglo XXI / XXII" });
+  await page.waitForFunction(() => document.querySelectorAll(".cells.flat").length === 0, null, {
+    timeout: 15000,
+  });
+  await page.waitForFunction(
+    () => /\d+\.\d × /.test(document.querySelector(".status")?.textContent ?? ""),
+    null,
+    { timeout: 30000 },
+  );
+  check(true, `${name}: back to a modular plate`);
   const size = () => page.textContent(".status span");
   const before = await size();
   await page.click('.chip:has-text("Corazón")');

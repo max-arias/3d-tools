@@ -1,6 +1,6 @@
-import { MODULES } from "../model/modules.js";
 import { usedSlots } from "../model/project.js";
-import { layoutModules, windowShape } from "./overlay.js";
+import { facePieces } from "./layout.js";
+import { windowShape } from "./overlay.js";
 import { decorate } from "./decorate.js";
 import { packResult } from "./relief.js";
 
@@ -54,7 +54,7 @@ export function generateTapa(kit, p) {
     ),
   );
 
-  const placed = layoutModules(p).filter((m) => MODULES[m.type].win);
+  const placed = facePieces({ ...p, style: "modular" }).windows; // a tapa is always a modular plate
   p.groups.forEach((g) => {
     if (usedSlots(g) > mods.slots) warnings.push("slotsOverflow");
   });
@@ -62,11 +62,7 @@ export function generateTapa(kit, p) {
     body = kit.sub(
       body,
       placed.map((m) =>
-        kit.ext(
-          kit.move(windowShape(kit, MODULES[m.type].win, t.winMargin), m.x, m.y),
-          -1,
-          lift + t.face + 0.01,
-        ),
+        kit.ext(kit.move(windowShape(kit, m.win, t.winMargin), m.x, m.y), -1, lift + t.face + 0.01),
       ),
     );
 
@@ -74,7 +70,7 @@ export function generateTapa(kit, p) {
   let plainBody = null; // the face before the image is cut into it, for the live preview
   if (pat.id !== "none") {
     const keepOut = placed.map((m) =>
-      kit.move(windowShape(kit, MODULES[m.type].win, t.winMargin + pat.margin), m.x, m.y),
+      kit.move(windowShape(kit, m.win, t.winMargin + pat.margin), m.x, m.y),
     );
     let area = kit.own(outline.offset(-pat.margin, "Round", 2, 32));
     if (keepOut.length) area = kit.csSub(area, keepOut);
