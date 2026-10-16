@@ -219,7 +219,7 @@ export function createSidebar() {
       row(t("preset"), presetSelect),
       preset.source && h("p", { class: "hint muted" }, t("presetUnverified")),
       plateDiagram({
-        plate: p.plate,
+        values: p.plate,
         windows: () =>
           layoutModules(project.get()).map((m) => ({ x: m.x, y: m.y, win: MODULES[m.type].win })),
         onChange: (key, v) => update((q) => (q.plate[key] = v)),
@@ -463,15 +463,29 @@ export function createSidebar() {
     return section(
       "tapaSpec",
       t("tapaSpec"),
-      h("p", { class: "hint muted" }, t("tapaHint")),
-      f(t("boxW"), "boxW", 30, 200, 0.5),
-      f(t("boxH"), "boxH", 30, 250, 0.5),
-      f(t("tClearance"), "clearance", 0, 1, 0.05),
-      f(t("tFace"), "face", 1.6, 8, 0.2),
-      f(t("tSkirt"), "skirt", 2, 20, 0.5),
-      f(t("tWall"), "wall", 1.2, 5, 0.2),
-      f(t("tBump"), "bump", 0, 1.2, 0.1),
-      f(t("tWin"), "winMargin", -1, 2, 0.1),
+      plateDiagram({
+        values: { w: p.plate.w, h: p.plate.h, d: p.tapa.skirt, r: p.plate.r },
+        inner: { w: p.tapa.boxW, h: p.tapa.boxH },
+        fields: [
+          { key: "boxW", letter: "A", min: 30, max: 200, step: 0.5, label: "boxW", at: "w" },
+          { key: "boxH", letter: "B", min: 30, max: 250, step: 0.5, label: "boxH", at: "h" },
+          { key: "skirt", letter: "C", min: 2, max: 20, step: 0.5, label: "tSkirt", at: "d" },
+        ],
+        windows: () =>
+          layoutModules(project.get()).map((m) => ({ x: m.x, y: m.y, win: MODULES[m.type].win })),
+        onChange: (key, v) => update((q) => (q.tapa[key] = v)),
+      }),
+      h("p", { class: "hint muted" }, t("tapaDimHint")),
+      h(
+        "details",
+        { class: "help" },
+        h("summary", {}, t("fine")),
+        f(t("tClearance"), "clearance", 0, 1, 0.05),
+        f(t("tFace"), "face", 1.6, 8, 0.2),
+        f(t("tWall"), "wall", 1.2, 5, 0.2),
+        f(t("tBump"), "bump", 0, 1.2, 0.1),
+        f(t("tWin"), "winMargin", -1, 2, 0.1),
+      ),
     );
   };
 
@@ -512,14 +526,25 @@ export function createSidebar() {
     return section(
       "keycap",
       t("keycapSpec"),
-      h("p", { class: "hint muted" }, t("keycapHint")),
-      f(t("kW"), "w", 8, 60, 0.5),
-      f(t("kL"), "l", 8, 80, 0.5),
-      f(t("kH"), "h", 2, 20, 0.5),
-      f(t("kR"), "r", 0, 15, 0.5),
-      f(t("kClear"), "clearance", 0, 1, 0.05),
-      f(t("kWall"), "wall", 1.2, 4, 0.2),
-      f(t("kFace"), "face", 1, 5, 0.2),
+      plateDiagram({
+        values: { w: k.w, h: k.l, d: k.h, r: k.r },
+        fields: [
+          { key: "w", letter: "A", min: 8, max: 60, step: 0.5, label: "kW", at: "w" },
+          { key: "l", letter: "B", min: 8, max: 80, step: 0.5, label: "kL", at: "h" },
+          { key: "h", letter: "C", min: 2, max: 20, step: 0.5, label: "kH", at: "d" },
+          { key: "r", letter: "R", min: 0, max: 15, step: 0.5, label: "kR", at: "r" },
+        ],
+        onChange: (key, v) => update((q) => (q.keycap[key] = v)),
+      }),
+      h("p", { class: "hint muted" }, t("keyDimHint")),
+      h(
+        "details",
+        { class: "help" },
+        h("summary", {}, t("fine")),
+        f(t("kClear"), "clearance", 0, 1, 0.05),
+        f(t("kWall"), "wall", 1.2, 4, 0.2),
+        f(t("kFace"), "face", 1, 5, 0.2),
+      ),
       row(
         t("kStyle"),
         segmented({

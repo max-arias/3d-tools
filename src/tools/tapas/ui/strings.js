@@ -184,6 +184,10 @@ addStrings("es", {
   noRoom: "{name} ocupa {n} lugares y queda {free}",
   overBy: "Se pasa por {n}. Quitá un módulo o subí «Módulos por bastidor».",
   fine: "Ajustes finos",
+  tapaDimHint:
+    "Medí el bastidor (lo que queda debajo de la tapa): A ancho, B alto, C profundidad del faldón. La línea de puntos es el bastidor.",
+  keyDimHint:
+    "Medí la tecla de frente: A ancho, B largo, C cuánto sobresale, R radio de las esquinas.",
 });
 
 addStrings("en", {
@@ -368,4 +372,8 @@ addStrings("en", {
   noRoom: "{name} takes {n} slots, {free} left",
   overBy: "Over by {n}. Remove a module or raise “Modules per frame”.",
   fine: "Fine tuning",
+  tapaDimHint:
+    "Measure the bastidor (what sits under the plate): A width, B height, C skirt depth. The dashed line is the bastidor.",
+  keyDimHint:
+    "Measure the key from the front: A width, B length, C how far it stands out, R corner radius.",
 });

@@ -17,54 +17,73 @@ const svgEl = (tag, attrs = {}) => {
   return el;
 };
 
+/** Field sets for plateDiagram. `key` is what onChange receives. */
+export const PLATE_FIELDS = [
+  { key: "w", letter: "A", min: 30, max: 300, step: 0.5, label: "plateW", at: "w" },
+  { key: "h", letter: "B", min: 30, max: 300, step: 0.5, label: "plateH", at: "h" },
+  { key: "d", letter: "C", min: 2, max: 30, step: 0.5, label: "plateD", at: "d" },
+  { key: "r", letter: "R", min: 0, max: 30, step: 0.5, label: "plateR", at: "r" },
+];
+
 /**
- * Isometric plate: x runs right-down, y (depth, how far it stands out) left-down, z up.
- * `windows()` returns the module windows in plate coordinates for the face.
- * Inputs sit on the dimension lines: A width, B height, C stands out, R corner radius.
+ * Isometric block: x runs right-down, y (depth, how far it stands out) left-down, z up.
+ * values = { w, h, d, r } sizes the block; `inner` = { w, h } adds a dashed outline on the face
+ * (the bastidor under a tapa). Each field is typed on its dimension line; `at` picks the line:
+ * "w" and "h" run along the block (or along `inner` when `inner` is given), "d" is the depth,
+ * "r" the corner radius. `windows()` returns [{ x, y, win }] drawn on the face.
  */
-export function plateDiagram({ plate, windows, onChange }) {
-  const v = { ...plate };
+export function plateDiagram({
+  values,
+  fields = PLATE_FIELDS,
+  inner = null,
+  windows = () => [],
+  onChange,
+}) {
+  const v = { ...values };
+  const iv = inner ? { ...inner } : null;
   const svg = svgEl("svg", { class: "iso", role: "img", "aria-label": t("measures") });
-  const fields = {};
+  const boxes = {};
   const wrap = h("div", { class: "diag" }, svg);
 
-  const spec = {
-    w: { letter: "A", min: 30, max: 300, step: 0.5, label: "plateW" },
-    h: { letter: "B", min: 30, max: 300, step: 0.5, label: "plateH" },
-    d: { letter: "C", min: 2, max: 30, step: 0.5, label: "plateD" },
-    r: { letter: "R", min: 0, max: 30, step: 0.5, label: "plateR" },
-  };
-  for (const [key, s] of Object.entries(spec)) {
+  for (const f of fields) {
+    const isInner = iv && (f.at === "w" || f.at === "h");
+    const store = isInner ? iv : v;
     const input = numField({
-      value: v[key],
-      min: s.min,
-      max: s.max,
-      step: s.step,
+      value: store[f.at],
+      min: f.min,
+      max: f.max,
+      step: f.step,
       unit: "",
       onChange: (n) => {
-        v[key] = n;
-        onChange(key, n);
+        store[f.at] = n;
+        onChange(f.key, n);
         draw();
       },
     });
-    const box = h("label", { class: "dim", title: t(s.label) }, h("b", {}, s.letter), input);
-    fields[key] = box;
-    wrap.append(box);
+    boxes[f.at] = h("label", { class: "dim", title: t(f.label) }, h("b", {}, f.letter), input);
+    wrap.append(boxes[f.at]);
   }
 
   function draw() {
     const { w, h: hh, d, r } = v;
-    const g = 12; // dimension lines sit this far off the plate (mm)
+    const big = Math.max(w, hh);
+    const g = Math.max(7, big * 0.1); // dimension lines sit this far off the block (mm)
+    const m = Math.max(10, big * 0.3); // the wall shows this much around it (mm)
+    // Dimension extents: the block, or the inner outline when there is one.
+    const ax0 = iv ? (w - iv.w) / 2 : 0;
+    const ax1 = iv ? (w + iv.w) / 2 : w;
+    const bz0 = iv ? (hh - iv.h) / 2 : 0;
+    const bz1 = iv ? (hh + iv.h) / 2 : hh;
     // Unit-scale projection, then fit to the drawing.
     const raw = (x, y, z) => [(x - y) * C30, (x + y) * S30 - z];
     const pts = [
-      raw(-40, 0, -40),
-      raw(w + 40, 0, -40),
-      raw(w + 40, 0, hh + 40),
-      raw(-40, 0, hh + 40),
-      raw(w + g + 18, d, -g - 14),
-      raw(-g - 30, d, hh + 24),
-      raw(w, d, hh + 6),
+      raw(-m, 0, -m),
+      raw(w + m, 0, -m),
+      raw(w + m, 0, hh + m),
+      raw(-m, 0, hh + m),
+      raw(w + g + 2 * g, d, -g - g),
+      raw(-g - 3 * g, d, hh + 2 * g),
+      raw(w, d, hh + g / 2),
     ];
     const xs = pts.map((p) => p[0]);
     const ys = pts.map((p) => p[1]);
@@ -85,15 +104,14 @@ export function plateDiagram({ plate, windows, onChange }) {
 
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.replaceChildren();
-    const add = (tag, attrs, parent = svg) => {
+    const add = (tag, attrs) => {
       const el = svgEl(tag, attrs);
-      parent.append(el);
+      svg.append(el);
       return el;
     };
-    // Wall.
-    const wall = [P(-40, 0, -40), P(w + 40, 0, -40), P(w + 40, 0, hh + 40), P(-40, 0, hh + 40)];
+    const wall = [P(-m, 0, -m), P(w + m, 0, -m), P(w + m, 0, hh + m), P(-m, 0, hh + m)];
     add("polygon", { points: wall.map((p) => p.join(",")).join(" "), class: "wall" });
-    // The plate: stacked outlines from the wall out to the face give the thickness with true rounded corners.
+    // Stacked outlines from the wall out to the face give the thickness with true rounded corners.
     const steps = Math.min(40, Math.max(2, Math.ceil(d * 1.5)));
     for (let i = 0; i <= steps; i++) {
       add("rect", {
@@ -108,12 +126,11 @@ export function plateDiagram({ plate, windows, onChange }) {
         "vector-effect": "non-scaling-stroke",
       });
     }
-    // Module windows on the face.
     const facePlane = plane(d);
-    for (const m of windows()) {
-      const cx = w / 2 + m.x;
-      const cy = hh / 2 + m.y;
-      const win = m.win;
+    for (const mod of windows()) {
+      const cx = w / 2 + mod.x;
+      const cy = hh / 2 + mod.y;
+      const win = mod.win;
       if (!win) continue;
       if (win.kind === "circle")
         add("circle", { cx, cy, r: win.d / 2, transform: facePlane, class: "win" });
@@ -128,8 +145,18 @@ export function plateDiagram({ plate, windows, onChange }) {
           class: "win",
         });
     }
+    if (iv)
+      add("rect", {
+        x: ax0,
+        y: bz0,
+        width: iv.w,
+        height: iv.h,
+        rx: 3,
+        transform: facePlane,
+        class: "inner",
+        "vector-effect": "non-scaling-stroke",
+      });
 
-    // Dimension lines.
     const line = (a, b) =>
       add("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: "dimline" });
     const tick = (a, dir) =>
@@ -140,16 +167,16 @@ export function plateDiagram({ plate, windows, onChange }) {
         y2: a[1] + dir[1],
         class: "dimline",
       });
-    const A1 = P(0, d, -g);
-    const A2 = P(w, d, -g);
+    const A1 = P(ax0, d, -g);
+    const A2 = P(ax1, d, -g);
     line(A1, A2);
-    line(P(0, d, 0), A1);
-    line(P(w, d, 0), A2);
-    const B1 = P(-g, d, 0);
-    const B2 = P(-g, d, hh);
+    line(P(ax0, d, bz0), A1);
+    line(P(ax1, d, bz0), A2);
+    const B1 = P(-g, d, bz0);
+    const B2 = P(-g, d, bz1);
     line(B1, B2);
-    line(P(0, d, 0), B1);
-    line(P(0, d, hh), B2);
+    line(P(ax0, d, bz0), B1);
+    line(P(ax0, d, bz1), B2);
     const C1 = P(w + g, 0, 0);
     const C2 = P(w + g, d, 0);
     line(C1, C2);
@@ -159,14 +186,14 @@ export function plateDiagram({ plate, windows, onChange }) {
     tick(A2, [0, 4]);
     tick(B1, [4, 0]);
     tick(B2, [4, 0]);
-    // Corner radius marker: a leader from the top-left corner.
     const corner = P(Math.min(r, w / 2) * 0.3, d, hh - Math.min(r, hh / 2) * 0.3);
-    const lead = P(-g - 4, d, hh + 14);
-    line(corner, lead);
+    const lead = P(-g - g * 0.4, d, hh + g * 1.2);
+    if (boxes.r) line(corner, lead);
 
     // Inputs on the lines, as percentages of the drawing so they scale with the panel.
     const at = (key, p, dx = 0, dy = 0) => {
-      const box = fields[key];
+      const box = boxes[key];
+      if (!box) return;
       box.style.left = `${((p[0] + dx) / W) * 100}%`;
       box.style.top = `${((p[1] + dy) / H) * 100}%`;
     };
