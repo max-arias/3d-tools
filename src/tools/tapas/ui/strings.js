@@ -27,7 +27,7 @@ addStrings("es", {
   measureHelp: "Cómo medir",
   measureHelpText:
     "Medí la tapa de frente (ancho y alto), cuánto sobresale de la pared y el radio de las esquinas. Si dudás, sumá 0,3 mm de holgura.",
-  clearance: "Holgura",
+  clearance: "Holgura (juego)",
   modules: "Módulos",
   modulesHint: "Qué hay detrás de cada hueco. Una tapa de 5x10 tiene hasta 3 módulos.",
   group: "Bastidor {n}",
@@ -194,6 +194,8 @@ addStrings("es", {
   dimBoxH: "Alto del bastidor",
   dimSkirt: "Profundidad del faldón",
   dimKeyL: "Largo",
+  clearanceHint:
+    "Espacio extra entre tu tapa y el cubretapa para que entre sin forzar. 0,3 mm suele andar: subilo si queda justo, bajalo si queda flojo.",
 });
 
 addStrings("en", {
@@ -388,4 +390,6 @@ addStrings("en", {
   dimBoxH: "Bastidor height",
   dimSkirt: "Skirt depth",
   dimKeyL: "Length",
+  clearanceHint:
+    "Extra gap between your plate and the cover so it slips on without force. 0.3 mm usually works: raise it if it is tight, lower it if it is loose.",
 });

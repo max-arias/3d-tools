@@ -235,6 +235,7 @@ export function createSidebar() {
           unit: "mm",
           onChange: (v) => update((q) => (q.overlay.clearance = v)),
         }),
+        t("clearanceHint"),
       ),
     );
   };
