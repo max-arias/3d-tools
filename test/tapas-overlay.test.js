@@ -56,7 +56,7 @@ test("windows sit on the module pitch and stay inside the plate", () => {
   const p = defaultProject();
   p.groups = [["tecla", "toma"]];
   const [a, b] = layoutModules(p);
-  expect(b.y - a.y).toBeCloseTo(p.mods.pitch * 1.5, 5); // tecla span 1 -> toma span 2, centre to centre
+  expect(a.y - b.y).toBeCloseTo(p.mods.pitch * 1.5, 5); // tecla span 1 -> toma span 2, centre to centre
   for (const m of layoutModules(p)) expect(Math.abs(m.y)).toBeLessThan(p.plate.h / 2);
 });
 

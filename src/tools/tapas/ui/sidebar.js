@@ -1,10 +1,12 @@
 import { h } from "../../../shell/h.js";
 import { numField, row, segmented, slider, stepper } from "../../../shell/widgets.js";
 import { langStore, t } from "../lib/i18n.js";
-import { MODULES, MODULE_IDS } from "../model/modules.js";
+import { MODULES } from "../model/modules.js";
 import { PRESETS, presetById } from "../model/presets.js";
 import { ICON_IDS } from "../geom/icons.js";
-import { PATTERN_MODES, PRODUCTS, usedSlots } from "../model/project.js";
+import { layoutModules } from "../geom/overlay.js";
+import { baysDiagram, plateDiagram } from "./diagrams.js";
+import { PATTERN_MODES, PRODUCTS } from "../model/project.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
 import { SHAPE_IDS } from "../geom/shapes.js";
 import { download3mf, downloadCoupon, downloadHouse, downloadStl, platesFor } from "./export.js";
@@ -36,21 +38,10 @@ const PRINTERS = [
   ["256 × 256 (Bambu A1/P1S/X1)", 256, 256],
   ["220 × 220 (Ender-3)", 220, 220],
   ["180 × 180 (A1 mini)", 180, 180],
+  ["256 × 256 (Bambu X2D)", 256, 256],
+  ["256 × 256 (Bambu P2D, a confirmar)", 256, 256],
   ["350 × 350 (grande)", 350, 350],
 ];
-
-const MEASURE_SVG = `<svg viewBox="0 0 220 150" role="img" aria-label="diagram">
-  <rect x="50" y="14" width="90" height="122" rx="10" fill="none" stroke="currentColor" stroke-width="2"/>
-  <rect x="68" y="30" width="54" height="26" rx="3" fill="none" stroke="currentColor" opacity=".5"/>
-  <rect x="68" y="62" width="54" height="26" rx="3" fill="none" stroke="currentColor" opacity=".5"/>
-  <rect x="68" y="94" width="54" height="26" rx="3" fill="none" stroke="currentColor" opacity=".5"/>
-  <path d="M50 8h90M50 5v6M140 5v6M146 14v122M143 14h6M143 136h6" stroke="var(--accent)" fill="none" stroke-width="1.5"/>
-  <text x="95" y="7" fill="var(--accent)" font-size="9" text-anchor="middle">A</text>
-  <text x="158" y="78" fill="var(--accent)" font-size="9">B</text>
-  <path d="M160 130h40v12h-40z" fill="none" stroke="currentColor" opacity=".6"/>
-  <path d="M160 142v-6h40" stroke="var(--accent)" fill="none" stroke-width="1.5"/>
-  <text x="180" y="124" fill="var(--accent)" font-size="9" text-anchor="middle">C</text>
-</svg>`;
 
 const section = (id, title, ...body) => {
   const d = h(
@@ -222,27 +213,18 @@ export function createSidebar() {
       },
       PRESETS.map((x) => h("option", { value: x.id, selected: x.id === p.preset }, x.label)),
     );
-    const num = (label, key, min, max, step = 0.5, unit = "mm") =>
-      row(
-        label,
-        numField({
-          value: p.plate[key],
-          min,
-          max,
-          step,
-          unit,
-          onChange: (v) => update((q) => (q.plate[key] = v)),
-        }),
-      );
     return section(
       "measures",
       t("measures"),
       row(t("preset"), presetSelect),
       preset.source && h("p", { class: "hint muted" }, t("presetUnverified")),
-      num(t("plateW"), "w", 30, 300),
-      num(t("plateH"), "h", 30, 300),
-      num(t("plateD"), "d", 2, 30),
-      num(t("plateR"), "r", 0, 30),
+      plateDiagram({
+        plate: p.plate,
+        windows: () =>
+          layoutModules(project.get()).map((m) => ({ x: m.x, y: m.y, win: MODULES[m.type].win })),
+        onChange: (key, v) => update((q) => (q.plate[key] = v)),
+      }),
+      h("p", { class: "hint muted" }, t("dimHint")),
       row(
         t("clearance"),
         numField({
@@ -254,24 +236,6 @@ export function createSidebar() {
           onChange: (v) => update((q) => (q.overlay.clearance = v)),
         }),
       ),
-      h(
-        "details",
-        { class: "help" },
-        h("summary", {}, t("measureHelp")),
-        h("div", { class: "diagram", innerHTML: MEASURE_SVG }),
-        h(
-          "p",
-          { class: "muted" },
-          "A = ",
-          t("plateW"),
-          " · B = ",
-          t("plateH"),
-          " · C = ",
-          t("plateD"),
-          ". ",
-          t("measureHelpText"),
-        ),
-      ),
     );
   };
 
@@ -281,132 +245,76 @@ export function createSidebar() {
       "modules",
       t("modules"),
       h("p", { class: "hint muted" }, t("modulesHint")),
-      row(
-        t("groups"),
-        stepper({
-          value: p.groups.length,
-          min: 1,
-          max: 3,
-          onChange: (n) => {
-            update((q) => {
-              while (q.groups.length < n)
-                q.groups.push(["tecla", "tecla", "tecla"].slice(0, q.mods.slots));
-              q.groups.length = n;
-            });
-            paint();
-          },
-        }),
-      ),
-      row(
-        t("slots"),
-        stepper({
-          value: p.mods.slots,
-          min: 1,
-          max: 6,
-          onChange: (n) => {
-            update((q) => (q.mods.slots = n));
-            paint();
-          },
-        }),
-      ),
-      p.groups.map((group, g) => {
-        const used = usedSlots(group);
-        return h(
-          "div",
-          { class: "group" },
-          h(
-            "div",
-            { class: "group-head" },
-            h("b", {}, t("group", { n: g + 1 })),
-            h("small", { class: used > p.mods.slots ? "bad" : "muted" }, `${used}/${p.mods.slots}`),
-          ),
-          h(
-            "div",
-            { class: "mods" },
-            group.map((m, i) =>
-              h(
-                "span",
-                { class: "mod" },
-                h(
-                  "select",
-                  {
-                    "aria-label": t(`m.${m}`),
-                    onchange: (e) => {
-                      update((q) => (q.groups[g][i] = e.target.value));
-                      paint();
-                    },
-                  },
-                  MODULE_IDS.map((id) =>
-                    h(
-                      "option",
-                      { value: id, selected: id === m },
-                      MODULES[id].span > 1
-                        ? `${t(`m.${id}`)} (${t("spanN", { n: MODULES[id].span })})`
-                        : t(`m.${id}`),
-                    ),
-                  ),
-                ),
-                h(
-                  "button",
-                  {
-                    class: "x",
-                    title: t("remove"),
-                    "aria-label": t("remove"),
-                    onclick: () => {
-                      update((q) => q.groups[g].splice(i, 1));
-                      paint();
-                    },
-                  },
-                  "×",
-                ),
-              ),
-            ),
-            h(
-              "button",
-              {
-                class: "add",
-                disabled: used >= p.mods.slots,
-                title: used >= p.mods.slots ? t("frameFull") : undefined,
-                onclick: () => {
-                  update((q) => q.groups[g].push("tecla"));
-                  paint();
-                },
-              },
-              "+ ",
-              t("add"),
-            ),
-          ),
-          used > p.mods.slots &&
-            h(
-              "p",
-              { class: "bad" },
-              t("slotsOver", { used, slots: p.mods.slots }),
-              ". ",
-              t("slotsOverHint"),
-            ),
-        );
+      baysDiagram({
+        groups: p.groups,
+        slots: p.mods.slots,
+        onChange: (g, next) => {
+          update((q) => (q.groups[g] = next));
+          paint();
+        },
       }),
-      row(
-        t("pitch"),
-        numField({
-          value: p.mods.pitch,
-          min: 15,
-          max: 40,
-          step: 0.5,
-          unit: "mm",
-          onChange: (v) => update((q) => (q.mods.pitch = v)),
-        }),
+      h(
+        "div",
+        { class: "inline-row" },
+        h(
+          "span",
+          {},
+          t("groups"),
+          stepper({
+            value: p.groups.length,
+            min: 1,
+            max: 3,
+            onChange: (n) => {
+              update((q) => {
+                while (q.groups.length < n)
+                  q.groups.push(["tecla", "tecla", "tecla"].slice(0, q.mods.slots));
+                q.groups.length = n;
+              });
+              paint();
+            },
+          }),
+        ),
+        h(
+          "span",
+          {},
+          t("slots"),
+          stepper({
+            value: p.mods.slots,
+            min: 1,
+            max: 6,
+            onChange: (n) => {
+              update((q) => (q.mods.slots = n));
+              paint();
+            },
+          }),
+        ),
       ),
-      row(
-        t("margin"),
-        numField({
-          value: p.mods.margin,
-          min: 0,
-          max: 3,
-          step: 0.1,
-          unit: "mm",
-          onChange: (v) => update((q) => (q.mods.margin = v)),
-        }),
+      h(
+        "details",
+        { class: "help" },
+        h("summary", {}, t("fine")),
+        row(
+          t("pitch"),
+          numField({
+            value: p.mods.pitch,
+            min: 15,
+            max: 40,
+            step: 0.5,
+            unit: "mm",
+            onChange: (v) => update((q) => (q.mods.pitch = v)),
+          }),
+        ),
+        row(
+          t("margin"),
+          numField({
+            value: p.mods.margin,
+            min: 0,
+            max: 3,
+            step: 0.1,
+            unit: "mm",
+            onChange: (v) => update((q) => (q.mods.margin = v)),
+          }),
+        ),
       ),
     );
   };

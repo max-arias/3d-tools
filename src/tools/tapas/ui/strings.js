@@ -176,6 +176,14 @@ addStrings("es", {
   spanN: "ocupa {n}",
   frameFull: "El bastidor está completo",
   slotsOverHint: "Cada módulo ocupa un lugar; una toma ocupa 2.",
+  dimHint:
+    "Medí con calibre la tapa de frente. Escribí cada valor sobre el dibujo: A ancho, B alto, C cuánto sobresale de la pared, R radio de las esquinas.",
+  pick: "Elegí un módulo",
+  swap: "Cambiar por {name}",
+  addHere: "Agregar {name}",
+  noRoom: "{name} ocupa {n} lugares y queda {free}",
+  overBy: "Se pasa por {n}. Quitá un módulo o subí «Módulos por bastidor».",
+  fine: "Ajustes finos",
 });
 
 addStrings("en", {
@@ -352,4 +360,12 @@ addStrings("en", {
   spanN: "takes {n}",
   frameFull: "The frame is full",
   slotsOverHint: "Each module takes one slot; a socket takes 2.",
+  dimHint:
+    "Measure the plate from the front with calipers and type each value on the drawing: A width, B height, C how far it stands out, R corner radius.",
+  pick: "Pick a module",
+  swap: "Swap for {name}",
+  addHere: "Add {name}",
+  noRoom: "{name} takes {n} slots, {free} left",
+  overBy: "Over by {n}. Remove a module or raise “Modules per frame”.",
+  fine: "Fine tuning",
 });

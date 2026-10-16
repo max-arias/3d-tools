@@ -14,10 +14,11 @@ export function layoutModules(p) {
     let cursor = 0;
     const total = usedSlots(group);
     const rowLen = Math.max(total, slots) * pitch;
-    const start = -rowLen / 2 + ((Math.max(total, slots) - total) * pitch) / 2;
+    // First module at the top, matching the order of the list in the panel.
+    const start = rowLen / 2 - ((Math.max(total, slots) - total) * pitch) / 2;
     for (const type of group) {
       const span = MODULES[type].span;
-      out.push({ x, y: start + (cursor + span / 2) * pitch, type, span });
+      out.push({ x, y: start - (cursor + span / 2) * pitch, type, span });
       cursor += span;
     }
   });
