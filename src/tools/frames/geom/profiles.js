@@ -30,6 +30,13 @@ export const PROFILES = {
       [1, 1],
     ],
   },
+  bevel: {
+    label: "Low bevel",
+    pts: [
+      [0, 0.7],
+      [1, 1],
+    ],
+  },
   stepped: {
     label: "Stepped",
     pts: [

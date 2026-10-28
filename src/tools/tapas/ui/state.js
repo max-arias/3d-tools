@@ -1,7 +1,7 @@
 import { createStore } from "../../../shell/store.js";
 import { run } from "../lib/client.js";
 import { houseFromHash, loadHouse, newItem, saveHouse, sanitizeHouse } from "../model/house.js";
-import { placementKey } from "./drag.js";
+import { geometryKey, placementKey } from "./drag.js";
 import { markEdited } from "../model/provenance.js";
 import { projectFromHash, sanitize } from "../model/project.js";
 import { t } from "../lib/i18n.js";
@@ -98,11 +98,12 @@ function generate() {
   running = true;
   again = false;
   const snapshot = project.get();
+  const geo = geometryKey(snapshot);
   const built = placementKey(snapshot); // what the finished build will contain, for the live preview
   result.set({ status: "loading" });
   run("generate", snapshot)
     .then(
-      (part) => result.set({ status: "ok", part, built, error: null }),
+      (part) => result.set({ status: "ok", part, built, geo, error: null }),
       (error) => result.set({ status: "error", error: error.message }),
     )
     .finally(() => {
@@ -117,7 +118,7 @@ function schedule() {
     return;
   }
   clearTimeout(timer);
-  timer = setTimeout(generate, 200);
+  timer = setTimeout(generate, 350); // the live preview covers the wait
 }
 
 /** While held, edits do not start builds; releasing starts one straight away if anything changed. */

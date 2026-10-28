@@ -5,5 +5,5 @@ Lightweight web app hosting many small 3D-printing tools. Tool #1: Gridfinity dr
 ## Task tracking
 
 Tasks live in the Obsidian vault project `3d-tools` (prefix TDT), not in GitHub Issues or TODO files. See
-`Ticket System.md` in the vault (`/mnt/c/Users/max/Documents/Obsidian Vault`) for the board format and operations.
+`Ticket System.md` in the vault (`C:\Users\max\Documents\Obsidian Vault`) for the board format and operations.
 The spec for the Gridfinity tool is ticket TDT-1.

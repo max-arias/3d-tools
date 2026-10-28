@@ -9,7 +9,7 @@ import { facePieces } from "../geom/layout.js";
 import { ArtError, drawThumb, hasRasterSource, importFile, retrace } from "./art.js";
 import { baysDiagram, plateDiagram } from "./diagrams.js";
 import { badge, staticBadge, track } from "./provenance.js";
-import { PATTERN_MODES, PRODUCTS } from "../model/project.js";
+import { PATTERN_MODES, PRODUCTS, moveModule } from "../model/project.js";
 import { PATTERN_IDS } from "../geom/patterns.js";
 import { SHAPE_IDS } from "../geom/shapes.js";
 import { download3mf, downloadCoupon, downloadHouse, downloadStl, platesFor } from "./export.js";
@@ -318,6 +318,10 @@ export function createSidebar() {
           update((q) => (q.groups[g] = next));
           paint();
         },
+        onMove: (from, to) => {
+          update((q) => (q.groups = moveModule(q.groups, from, to)));
+          paint();
+        },
       }),
       h(
         "div",
@@ -451,27 +455,32 @@ export function createSidebar() {
             onChange: (v) => update((q) => (q.overlay.corner = v)),
           }),
         ),
-      row(
-        t("wall"),
-        numField({
-          value: p.overlay.wall,
-          min: 1.2,
-          max: 8,
-          step: 0.2,
-          unit: "mm",
-          onChange: (v) => update((q) => (q.overlay.wall = v)),
-        }),
-      ),
-      row(
-        t("face"),
-        numField({
-          value: p.overlay.face,
-          min: 1,
-          max: 6,
-          step: 0.2,
-          unit: "mm",
-          onChange: (v) => update((q) => (q.overlay.face = v)),
-        }),
+      h(
+        "details",
+        { class: "help" },
+        h("summary", {}, t("fine")),
+        row(
+          t("wall"),
+          numField({
+            value: p.overlay.wall,
+            min: 1.2,
+            max: 8,
+            step: 0.2,
+            unit: "mm",
+            onChange: (v) => update((q) => (q.overlay.wall = v)),
+          }),
+        ),
+        row(
+          t("face"),
+          numField({
+            value: p.overlay.face,
+            min: 1,
+            max: 6,
+            step: 0.2,
+            unit: "mm",
+            onChange: (v) => update((q) => (q.overlay.face = v)),
+          }),
+        ),
       ),
     );
   };

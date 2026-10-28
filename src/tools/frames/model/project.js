@@ -40,19 +40,6 @@ export function defaultProject() {
   };
 }
 
-/** Starting values for the tiny magnet-on-the-fridge frames (stamps, cards). */
-export const MINI_STYLE = {
-  shape: { type: "rect" },
-  moulding: { profile: "box", width: 6, height: 10 },
-  rabbet: { clearance: 0.3, lip: 1.2 },
-  photo: { overlap: 1.5 },
-  stack: { glass: 0.5, photo: 0.4, back: 1.6, gap: 0 },
-  mat: { on: false },
-  retention: "slide",
-  mount: { type: "magnets", magnetD: 6, magnetH: 2 },
-  texture: { type: "none" },
-};
-
 /** Clamp every field of a raw project (from storage, a share link or an edit) to a valid one. */
 export function sanitize(raw) {
   const d = defaultProject();

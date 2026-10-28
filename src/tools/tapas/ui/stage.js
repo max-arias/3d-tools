@@ -6,7 +6,22 @@ import { facePieces, layoutModules } from "../geom/layout.js";
 import { langStore, t } from "../lib/i18n.js";
 import { drawArt } from "./art.js";
 import { loadHallProps, place } from "./hallProps.js";
-import { artBox, dragPlacement, insideArt, placementKey, wheelSize } from "./drag.js";
+import { constrainMove, covers, fitScale, overlayBox, transform } from "../geom/fit2d.js";
+import { createHandles } from "./handles.js";
+import { shapeModel } from "./shapeModel.js";
+import { run } from "../lib/client.js";
+import { buildProxy } from "./proxy.js";
+import { numField } from "../../../shell/widgets.js";
+import {
+  artBox,
+  dragPlacement,
+  geometryKey,
+  insideArt,
+  placementKey,
+  shapeDrag,
+  turn,
+  wheelSize,
+} from "./drag.js";
 import { holdGeneration, project, result, update, view } from "./state.js";
 
 const css = (name) =>
@@ -134,7 +149,18 @@ export function createStage() {
   const tools = h("div", { class: "viewtools" });
   const wallPick = h("div", { class: "walls" });
   const hintbar = h("div", { class: "hintbar" });
-  const root = h("main", { class: "stage" }, canvasWrap, tools, wallPick, busy, hintbar, status);
+  const shapeTools = h("div", { class: "shapetools", hidden: true });
+  const root = h(
+    "main",
+    { class: "stage" },
+    canvasWrap,
+    tools,
+    wallPick,
+    busy,
+    shapeTools,
+    hintbar,
+    status,
+  );
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -176,9 +202,11 @@ export function createStage() {
   // The plate being designed: origin at the plate centre, wall plane at z = 0, face toward +z.
   const holder = new THREE.Group();
   const cover = new THREE.Group();
+  const proxy = new THREE.Group(); // quick stand-in while the exact build is stale
+  proxy.visible = false;
   const stockPlate = new THREE.Group();
   const stockMods = new THREE.Group();
-  holder.add(cover, stockPlate, stockMods);
+  holder.add(cover, proxy, stockPlate, stockMods);
   scene.add(holder);
 
   // ---- hallway: the same wall plane, with a room around it ---------------------------------------
@@ -442,11 +470,74 @@ export function createStage() {
       }
   }
 
+  // ---- the quick stand-in -----------------------------------------------------------------------
+  // While the exact build is stale (a drag, a typed number, a new shape) the cover is drawn from its
+  // outline in plain three.js, so it follows every edit at once. The build replaces it when it lands.
+  const outlines = new Map(); // outline at its own size, from the worker, per shape and size
+  const asked = new Set();
+  let proxyKey = "";
+  let proxyOn = false;
+  function outlineFor(p) {
+    const b = overlayBox(p);
+    const o = p.overlay;
+    const key = [o.shape, b.w.toFixed(2), b.h.toFixed(2), o.corner].join("|");
+    if (outlines.has(key)) return outlines.get(key);
+    if (!asked.has(key)) {
+      asked.add(key);
+      run("outline", { shape: o.shape, w: b.w, h: b.h, corner: o.corner }).then(
+        (poly) => {
+          outlines.set(key, poly);
+          paintCover();
+        },
+        () => {},
+      );
+    }
+    return null;
+  }
+  function paintCover() {
+    const p = project.get();
+    const key = geometryKey(p);
+    const stale = p.product === "overlay" && exact && exact.geo !== key;
+    const m = stale ? currentModel() : null;
+    proxyOn = !!m;
+    if (m && key !== proxyKey) {
+      proxyKey = key;
+      const outline = transform(m.unit, { k: m.k, rot: m.o.rot, dx: m.at.dx, dy: m.at.dy });
+      dispose(proxy);
+      proxy.add(
+        ...buildProxy(p, outline, { w: m.b.pocketW, h: m.b.pocketH, r: m.b.pocketR }, mainMat)
+          .children,
+      );
+    }
+    const original = view.get().stock;
+    proxy.visible = proxyOn && !original;
+    cover.visible = !proxyOn && !original;
+  }
+
+  // The outline's model, remembered until the project, the outline or the last build changes.
+  let modelKey = "";
+  let modelUnit = null;
+  let modelCache = null;
+  function currentModel() {
+    const p = project.get();
+    if (p.product !== "overlay") return null;
+    const unit = outlineFor(p);
+    if (!unit) return null;
+    const built = exact?.part.placement;
+    const key = `${geometryKey(p)}|${built?.dx},${built?.dy}`;
+    if (key !== modelKey || unit !== modelUnit) {
+      modelKey = key;
+      modelUnit = unit;
+      modelCache = shapeModel(p, unit, built);
+    }
+    return modelCache;
+  }
+
   // ---- what is visible --------------------------------------------------------------------------
   function apply() {
-    const { stock: original, mode } = view.get();
+    const { mode } = view.get();
     const prod = project.get().product;
-    cover.visible = !original;
+    paintCover();
     // Through the windows you see the real switch. A key cap fits over the key, so none is shown.
     stockMods.visible = prod !== "keycap";
     stockPlate.visible = prod !== "keycap" && prod !== "tapa";
@@ -455,7 +546,8 @@ export function createStage() {
       orbit.enabled = !wallMode;
       hallCtl.enabled = wallMode;
     }
-    hintbar.textContent = imageActive() ? t("moveHint") : "";
+    hintbar.textContent = imageActive() ? t("moveHint") : shapeActive() ? t("shapeDragHint") : "";
+    paintShapeTools();
     hall.visible = wallMode;
     studio.visible = !wallMode;
     backdrop.visible = !wallMode;
@@ -463,6 +555,7 @@ export function createStage() {
   }
 
   let shot = "mid";
+  let exact = null; // the last finished build: { part, geo }
   let drag = null; // set while the uploaded image is being dragged
   const imageActive = () => project.get().pattern.id === "image" && !!project.get().art;
   function setShot(name) {
@@ -587,7 +680,9 @@ export function createStage() {
   let lastSpan = 0;
   result.subscribe((r) => {
     if (r.status === "ok") {
+      exact = { part: r.part, geo: r.geo };
       showCover(r.part);
+      paintCover();
       showStock(project.get());
       span = Math.max(...r.part.size);
       if (!lastSpan) camera.position.set(-span * 0.35, span * 0.5, span * 2.2);
@@ -618,6 +713,7 @@ export function createStage() {
       hallCtl.update();
     } else orbit.update();
     renderer.render(scene, camera);
+    paintHandles();
   });
 
   // ---- dragging the image ---------------------------------------------------------------------
@@ -627,14 +723,22 @@ export function createStage() {
   const ndc = new THREE.Vector2();
   const hitPoint = new THREE.Vector3();
   /** Where the pointer touches the face plane, in view millimetres. */
-  function faceHit(ev) {
+  function aim(ev) {
     const r = dom.getBoundingClientRect();
     ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const top = result.get().part?.size[2] ?? 0;
+  }
+  function faceHit(ev) {
+    aim(ev);
+    const top = faceTop();
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -top);
     return ray.ray.intersectPlane(plane, hitPoint) ? { x: hitPoint.x, y: hitPoint.y } : null;
   }
+  /** Is the pointer on the cover itself (not the backdrop)? */
+  const overCover = (ev) => {
+    aim(ev);
+    return ray.intersectObjects((proxyOn ? proxy : cover).children, false).length > 0;
+  };
   const overImage = (ev) => {
     const p = project.get();
     if (!imageActive()) return false;
@@ -646,16 +750,85 @@ export function createStage() {
     clearTimeout(revTimer);
     revTimer = setTimeout(() => view.set({ artRev: (view.get().artRev ?? 0) + 1 }), 150);
   };
+  // ---- the cover's outline: drag it, nudge it, size it -----------------------------------------
+  // Only for free shapes in the 3D view; a plain rectangle or the original plate has nothing to place.
+  const shapeActive = () => {
+    const p = project.get();
+    return (
+      p.product === "overlay" &&
+      p.overlay.shape !== "rect" &&
+      p.overlay.shape !== "rounded" &&
+      !view.get().stock &&
+      view.get().mode === "3d"
+    );
+  };
+  const clampTo = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const maxSide = (m) => Math.max(m.b.w, m.b.h);
+  // The size is stored rounded up to 0.1 mm, so what is stored always still covers the plate.
+  const sizeFor = (m) => Math.ceil(m.sizeMM * 10) / 10;
+  const round1 = (v) => Math.round(v * 10) / 10;
+  /** Offsets where the outline, at its current size and turn, still holds the plate. */
+  const feasible = (m) => (at) =>
+    covers(m.unit, m.must, m.k, { rot: m.o.rot, dx: at.dx, dy: at.dy });
+  /** Pin the outline: manual placement at its current spot and size, plus `extra`. */
+  const pin = (m, extra = {}) =>
+    update((q) => {
+      q.overlay.place = "manual";
+      q.overlay.dx = round1(m.at.dx);
+      q.overlay.dy = round1(m.at.dy);
+      q.overlay.size = sizeFor(m);
+      Object.assign(q.overlay, extra);
+    });
+  const setSize = (mm) => {
+    const m = currentModel();
+    if (!m) return;
+    pin(m, { size: clampTo(Math.round(mm), 20, 600) });
+  };
+  const nudge = (m, dx, dy) => {
+    const at = constrainMove(feasible(m), m.at, { dx: m.at.dx + dx, dy: m.at.dy + dy });
+    pin(m, { dx: round1(at.dx), dy: round1(at.dy) });
+  };
+  const designAngle = (hit, c) => (Math.atan2(hit.y - c.y, -(hit.x - c.x)) * 180) / Math.PI;
+
   // Capture phase on the wrapper, so this runs before the camera controls see the press.
   canvasWrap.addEventListener(
     "pointerdown",
     (ev) => {
-      if (ev.button !== 0 || !overImage(ev)) return;
-      const { ax, ay } = project.get().pattern;
-      drag = { start: faceHit(ev), ax, ay };
+      canvasWrap.focus({ preventScroll: true });
+      if (ev.button !== 0) return;
+      const grip = ev.target.closest?.("[data-h]")?.dataset.h;
+      const image = !grip && overImage(ev);
+      const shape = !grip && !image && shapeActive() && overCover(ev);
+      if (!grip && !image && !shape) return;
+      const start = faceHit(ev);
+      const m = grip || shape ? currentModel() : null;
+      if ((grip || shape) && (!m || !start)) return;
+      if (image) {
+        const { ax, ay } = project.get().pattern;
+        drag = { kind: "image", start, ax, ay };
+      } else if (shape) {
+        // From the automatic minimum there is no room to slide, so the first move grants some.
+        const roomy = m.o.size == null ? { ...m, k: m.k * 1.12, sizeMM: m.sizeMM * 1.12 } : m;
+        drag = { kind: "shape", start, m: roomy, last: { ...m.at } };
+      } else {
+        const c = { x: -m.center[0], y: m.center[1] };
+        const minMM =
+          Math.ceil(fitScale(m.unit, m.must, { rot: m.o.rot, ...m.at }) * maxSide(m) * 10) / 10;
+        drag =
+          grip === "size"
+            ? {
+                kind: "size",
+                start,
+                m,
+                c,
+                d0: Math.hypot(start.x - c.x, start.y - c.y) || 1,
+                minMM,
+              }
+            : { kind: "turn", start, m, c, a0: designAngle(start, c) };
+      }
+      holdGeneration(true); // the preview follows the pointer; one exact build runs on release
       orbit.enabled = false;
       hallCtl.enabled = false;
-      holdGeneration(true);
       dom.setPointerCapture(ev.pointerId);
       dom.style.cursor = "grabbing";
       ev.stopPropagation();
@@ -665,38 +838,161 @@ export function createStage() {
   );
   dom.addEventListener("pointermove", (ev) => {
     if (!drag) {
-      if (ev.buttons === 0) dom.style.cursor = overImage(ev) ? "grab" : "";
+      if (ev.buttons === 0)
+        dom.style.cursor = overImage(ev) || (shapeActive() && overCover(ev)) ? "grab" : "";
       return;
     }
     const hit = faceHit(ev);
-    if (!hit) return;
-    const next = dragPlacement({ ...drag, hit });
-    update((q) => {
-      q.pattern.ax = next.ax;
-      q.pattern.ay = next.ay;
-    });
+    if (!hit || !drag.start) return;
+    if (drag.kind === "image") {
+      const next = dragPlacement({ ...drag, hit });
+      update((q) => {
+        q.pattern.ax = next.ax;
+        q.pattern.ay = next.ay;
+      });
+      return;
+    }
+    const { m } = drag;
+    if (drag.kind === "shape") {
+      // The size stays; the outline slides along the limit where it would stop covering the plate.
+      const next = shapeDrag({ ...drag, dx: m.at.dx, dy: m.at.dy, hit });
+      drag.last = constrainMove(feasible(m), drag.last, next);
+      pin(m, { dx: round1(drag.last.dx), dy: round1(drag.last.dy) });
+    } else if (drag.kind === "size") {
+      let mm = (sizeFor(m) * Math.hypot(hit.x - drag.c.x, hit.y - drag.c.y)) / drag.d0;
+      if (ev.shiftKey) mm = Math.round(mm / 5) * 5;
+      pin(m, { size: round1(clampTo(mm, drag.minMM, 600)) });
+    } else {
+      let rot = m.o.rot + designAngle(hit, drag.c) - drag.a0;
+      const near = Math.round(rot / 15) * 15;
+      if (Math.abs(rot - near) < 4) rot = near;
+      pin(m, { rot: turn(Math.round(rot), 0) });
+    }
   });
   const endDrag = () => {
     if (!drag) return;
+    const image = drag.kind === "image";
     drag = null;
     dom.style.cursor = "";
     apply(); // gives the camera back
     holdGeneration(false); // builds the new placement now
-    bumpPanel();
+    if (image) bumpPanel();
   };
   dom.addEventListener("pointerup", endDrag);
   dom.addEventListener("pointercancel", endDrag);
   canvasWrap.addEventListener(
     "wheel",
     (ev) => {
-      if (!ev.shiftKey || !overImage(ev)) return; // a plain wheel zooms the camera as before
-      ev.preventDefault();
-      ev.stopPropagation();
-      update((q) => (q.pattern.size = wheelSize(q.pattern.size, ev.deltaY || ev.deltaX)));
-      bumpPanel();
+      if (!ev.shiftKey) return; // a plain wheel zooms the camera as before
+      const up = (ev.deltaY || ev.deltaX) < 0;
+      if (overImage(ev)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        update((q) => (q.pattern.size = wheelSize(q.pattern.size, ev.deltaY || ev.deltaX)));
+        bumpPanel();
+      } else if (shapeActive() && overCover(ev)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const m = currentModel();
+        if (m) setSize(m.sizeMM * (up ? 1.05 : 1 / 1.05));
+      }
     },
     { passive: false, capture: true },
   );
+  canvasWrap.tabIndex = 0;
+  canvasWrap.addEventListener("keydown", (ev) => {
+    const dirs = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] };
+    const d = dirs[ev.key];
+    const m = d && shapeActive() && ev.target === canvasWrap ? currentModel() : null;
+    if (!m) return;
+    ev.preventDefault();
+    const step = ev.shiftKey ? 5 : 0.5; // view x is the design's x reversed
+    nudge(m, d[0] * step, d[1] * step);
+  });
+
+  // ---- the frame and handles over the outline ---------------------------------------------------
+  const handles = createHandles();
+  canvasWrap.append(handles.el);
+  const faceTop = () =>
+    proxyOn ? project.get().plate.d + project.get().overlay.face : (exact?.part.size[2] ?? 0);
+  const pixel = new THREE.Vector3();
+  const toPixel = ([x, y]) => {
+    pixel.set(-x, y, faceTop()).project(camera);
+    return {
+      x: ((pixel.x + 1) / 2) * canvasWrap.clientWidth,
+      y: ((1 - pixel.y) / 2) * canvasWrap.clientHeight,
+    };
+  };
+  function paintHandles() {
+    const m = shapeActive() ? currentModel() : null;
+    if (!m) return handles.update(null);
+    camera.updateMatrixWorld();
+    handles.update(
+      {
+        corners: m.corners.map(toPixel),
+        top: toPixel(m.top),
+        center: toPixel(m.center),
+      },
+      // clear of the view buttons (top) and the toolbar and hint (bottom)
+      { x0: 16, x1: canvasWrap.clientWidth - 16, y0: 56, y1: canvasWrap.clientHeight - 130 },
+    );
+  }
+
+  // The buttons and exact numbers for the outline, over the preview.
+  function paintShapeTools() {
+    const show = shapeActive();
+    shapeTools.hidden = !show;
+    if (!show) return;
+    if (shapeTools.contains(document.activeElement) && document.activeElement.tagName === "INPUT")
+      return; // typing in a field must not rebuild it
+    const focus = document.activeElement?.dataset?.act;
+    const o = project.get().overlay;
+    const m = currentModel();
+    const size = m ? Math.round(m.sizeMM) : (o.size ?? 0);
+    const btn = (act, label, title, on, disabled = false) =>
+      h(
+        "button",
+        { class: "chip", dataset: { act }, title, "aria-label": title, disabled, onclick: on },
+        label,
+      );
+    const autoNow = o.place === "auto" && o.size == null && !o.grow;
+    shapeTools.replaceChildren(
+      h(
+        "span",
+        { class: "grp" },
+        btn("l", "⟲", t("turnLeft"), () => update((q) => (q.overlay.rot = turn(o.rot, -15)))),
+        numField({
+          value: o.rot,
+          min: 0,
+          max: 359,
+          step: 1,
+          unit: "°",
+          onChange: (v) => update((q) => (q.overlay.rot = v)),
+        }),
+        btn("r", "⟳", t("turnRight"), () => update((q) => (q.overlay.rot = turn(o.rot, 15)))),
+      ),
+      h(
+        "span",
+        { class: "grp" },
+        btn("s", "−", t("smaller"), () => setSize(size - 10)),
+        numField({ value: size, min: 20, max: 600, step: 5, unit: "mm", onChange: setSize }),
+        btn("b", "+", t("bigger"), () => setSize(size + 10)),
+      ),
+      btn(
+        "auto",
+        t("fitMin"),
+        t("fitMinHint"),
+        () =>
+          update((q) => {
+            q.overlay.place = "auto";
+            q.overlay.size = null;
+            q.overlay.grow = 0;
+          }),
+        autoNow,
+      ),
+    );
+    if (focus) shapeTools.querySelector(`[data-act="${focus}"]`)?.focus();
+  }
 
   paintColors();
   paintTools();

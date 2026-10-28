@@ -24,7 +24,19 @@ export function defaultProject() {
     window: "single",
     flat: { slit: 0.8 },
     groups: [["tecla", "tecla", "tecla"]],
-    overlay: { shape: "rounded", corner: 6, wall: 2.4, face: 2, clearance: 0.3 },
+    overlay: {
+      shape: "rounded",
+      corner: 6,
+      wall: 2.4,
+      face: 2,
+      clearance: 0.3,
+      place: "auto",
+      dx: 0,
+      dy: 0,
+      rot: 0,
+      grow: 0,
+      size: null, // mm, longest side; null = as small as covers the plate
+    },
     printer: { x: 256, y: 256 },
     frame: { h: 8 },
     tapa: {
@@ -135,6 +147,12 @@ export function sanitize(raw) {
       wall: num(ov.wall, 1.2, 8, d.overlay.wall),
       face: num(ov.face, 1, 6, d.overlay.face),
       clearance: num(ov.clearance, 0, 1.5, d.overlay.clearance),
+      place: ov.place === "manual" ? "manual" : "auto",
+      dx: num(ov.dx, -150, 150, 0),
+      dy: num(ov.dy, -150, 150, 0),
+      rot: num(ov.rot, 0, 359, 0),
+      grow: num(ov.grow, 0, 200, 0),
+      size: ov.size == null ? null : num(ov.size, 20, 600, null),
     },
     printer: {
       x: num(r.printer?.x, 50, 1000, d.printer.x),
@@ -229,6 +247,14 @@ export function sanitizeArt(raw) {
 
 /** Slots used by one group's modules. */
 export const usedSlots = (group) => group.reduce((n, m) => n + MODULES[m].span, 0);
+
+/** Move the module at `from` to insertion index `to.i` of frame `to.g` (counted before the move). */
+export function moveModule(groups, from, to) {
+  const next = groups.map((g) => [...g]);
+  const [m] = next[from.g].splice(from.i, 1);
+  next[to.g].splice(from.g === to.g && from.i < to.i ? to.i - 1 : to.i, 0, m);
+  return next;
+}
 
 export function loadProject() {
   try {

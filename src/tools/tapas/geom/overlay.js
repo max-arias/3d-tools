@@ -2,7 +2,7 @@ import { usedSlots } from "../model/project.js";
 import { facePieces } from "./layout.js";
 import { decorate } from "./decorate.js";
 import { packResult } from "./relief.js";
-import { fitOutline } from "./shapes.js";
+import { placeOutline } from "./shapes.js";
 
 export { layoutModules } from "./layout.js";
 
@@ -36,14 +36,11 @@ export function generateOverlay(kit, p) {
 
   // The outline must hold the pocket plus a wall all round.
   const must = kit.rrect(pocketW + 2 * o.wall, pocketH + 2 * o.wall, pocketR + o.wall);
-  const { cs: outline } = fitOutline(
-    kit,
-    o.shape,
-    pocketW + 2 * o.wall,
-    pocketH + 2 * o.wall,
-    must,
-    o,
-  );
+  const {
+    cs: outline,
+    dx,
+    dy,
+  } = placeOutline(kit, o, pocketW + 2 * o.wall, pocketH + 2 * o.wall, must);
 
   let body = kit.sub(
     kit.ext(outline, lift, total),
@@ -100,6 +97,7 @@ export function generateOverlay(kit, p) {
       patternBodies,
       plainBody,
       bounds: outline.bounds(),
+      placement: { dx, dy },
       total,
       pocket: [pocketW, pocketH, depth],
       warnings,

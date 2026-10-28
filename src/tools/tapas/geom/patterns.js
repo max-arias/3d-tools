@@ -163,7 +163,10 @@ export const PATTERNS = {
     const t = Math.max(0.5, s * w * 0.09);
     const gap = t * 0.8;
     const rings = [kit.circle(r, 0, 0, 40)];
-    for (const f of [0.74, 0.48]) rings.push(kit.csSub(kit.circle(r * f + t / 2, 0, 0, 40), kit.circle(r * f - t / 2, 0, 0, 40)));
+    for (const f of [0.74, 0.48])
+      rings.push(
+        kit.csSub(kit.circle(r * f + t / 2, 0, 0, 40), kit.circle(r * f - t / 2, 0, 0, 40)),
+      );
     rings[0] = kit.csSub(rings[0], kit.circle(r - t, 0, 0, 40));
     rings.push(kit.circle(r * 0.2, 0, 0, 24));
     const scale = kit.csUnion(rings);
@@ -220,8 +223,8 @@ export const PATTERNS = {
   // Filete porteño: S-shaped scrolls with brush strokes that thin towards the curled tips and a
   // bud at each tip, in brick rows that alternate upright and flipped.
   filete: ({ kit, s, w, R }) => {
-    const wmax = Math.max(0.6, s * w * 0.2);
-    const a = 0.22 * s;
+    const wmax = Math.max(0.6, Math.min(s * w * 0.2, s * 0.085));
+    const a = 0.24 * s;
     const turns = 1.4;
     const half = (cx, th0) => {
       const out = [];
@@ -242,10 +245,12 @@ export const PATTERNS = {
     ]);
     const down = kit.own(up.mirror([0, 1]));
     const pitch = s;
-    const rowH = 0.62 * s;
+    const rowH = 0.55 * s;
+    const dot = kit.circle(wmax * 0.6, 0, 0, 12);
     const out = [];
     for (const [x, y, , j] of lattice(pitch, R, rowH / pitch)) {
       out.push(kit.own((j & 2 ? down : up).translate([x, y])));
+      out.push(kit.own(dot.translate([x + pitch / 2, y])));
     }
     return out;
   },

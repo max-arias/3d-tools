@@ -35,7 +35,7 @@ export function createHeader(toast) {
       value: view.get().unit,
       options: [
         { value: "mm", label: "mm" },
-        { value: "in", label: "in" },
+        { value: "cm", label: "cm" },
       ],
       onChange: (unit) => view.set({ unit }),
     }),

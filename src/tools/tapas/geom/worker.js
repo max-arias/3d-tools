@@ -7,6 +7,7 @@ import { generateFrame } from "./frame.js";
 import { generateKeycap } from "./keycap.js";
 import { generateOverlay } from "./overlay.js";
 import { generateTapa } from "./tapa.js";
+import { SHAPES } from "./shapes.js";
 
 let wasm;
 const ready = (async () => {
@@ -32,6 +33,27 @@ const jobs = {
       if (project.product === "keycap" && project.keycap.icon === "text" && !font)
         font = (await import("./font.json")).default;
       return products[project.product](kit, project, { font });
+    } finally {
+      kit.free();
+    }
+  },
+  // The outline of a shape at its own size, for the live preview (which scales and turns it in JS).
+  async outline({ shape, w, h, corner }) {
+    const kit = createKit(wasm);
+    try {
+      const def = SHAPES[shape];
+      const side = Math.max(w, h);
+      const cs = def.round
+        ? def.build(kit, side, side, { corner })
+        : def.build(kit, w, h, { corner });
+      const area = (r) =>
+        Math.abs(
+          r.reduce(
+            (a, [x, y], i) => a + x * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * y,
+            0,
+          ),
+        );
+      return cs.toPolygons().sort((a, b) => area(b) - area(a))[0];
     } finally {
       kit.free();
     }

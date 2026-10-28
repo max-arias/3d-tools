@@ -68,6 +68,7 @@ export function packResult(
     bounds,
     total,
     pocket = null,
+    placement = null,
     warnings = [],
   },
 ) {
@@ -101,6 +102,7 @@ export function packResult(
     volume: bodies.reduce((a, b) => a + b.volume, 0),
     valid: main.valid,
     pocket,
+    placement,
     warnings: [...w],
   };
 }

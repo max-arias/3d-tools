@@ -363,6 +363,32 @@ select {
   color: var(--text);
 }
 
+.presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 2px;
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--muted);
+}
+.preset svg {
+  width: 100%;
+  height: 52px;
+}
+.preset[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 .items {
   list-style: none;
   margin: 0 0 8px;

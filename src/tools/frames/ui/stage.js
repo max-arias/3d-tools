@@ -3,6 +3,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { h } from "../../../shell/h.js";
 import { segmented } from "../../../shell/widgets.js";
 import { platePlan } from "./export.js";
+import { buildRoom, catTexture, loadProps, standDepth, WALL_Z } from "./room.js";
+import { windowPath } from "../geom/path.js";
 import { project, result, view } from "./state.js";
 
 const css = (name, fallback) =>
@@ -21,6 +23,24 @@ const LIFT = {
 };
 const liftOf = (name, role) => LIFT[name.split("_")[0]] ?? LIFT[role] ?? [0, 0];
 
+/** The photo cut to the window's outline, so an oval frame does not show a rectangle behind it. */
+function photoGeometry(p, res, w, h) {
+  if (p.shape.type === "rect") return new THREE.PlaneGeometry(w, h);
+  const m = p.moulding.width;
+  const win = [res.outer[0] - 2 * m, res.outer[1] - 2 * m];
+  const path = windowPath(p.shape, [
+    win[0] + 2 * p.photo.overlap - 0.4,
+    win[1] + 2 * p.photo.overlap - 0.4,
+  ]);
+  const geo = new THREE.ShapeGeometry(
+    new THREE.Shape(path.map(([x, y]) => new THREE.Vector2(x, y))),
+  );
+  const pos = geo.attributes.position;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / w + 0.5, pos.getY(i) / h + 0.5);
+  return geo;
+}
+
 export function createStage() {
   const canvasWrap = h("div", { class: "canvas" });
   const busy = h("div", { class: "busy", role: "status" });
@@ -36,13 +56,32 @@ export function createStage() {
   const orbit = new OrbitControls(camera, renderer.domElement);
   orbit.enableDamping = true;
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.1));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const studio = new THREE.Group(); // the plain lights for every view but the room
+  studio.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.1));
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
   key.position.set(-150, 220, 360);
-  scene.add(key);
+  studio.add(key);
   const fill = new THREE.DirectionalLight(0xffffff, 0.6);
   fill.position.set(200, -100, 160);
-  scene.add(fill);
+  studio.add(fill);
+  scene.add(studio);
+
+  let room = null;
+  let props = null;
+  const dropRoom = () => {
+    if (!room) return;
+    scene.remove(room);
+    room.traverse((o) => {
+      if (o.userData.shared) return; // the loaded glTF props are reused
+      o.geometry?.dispose();
+      o.material?.dispose();
+      o.shadow?.map?.dispose();
+    });
+    room = null;
+  };
 
   const mats = new Map();
   const matFor = (color) => {
@@ -63,7 +102,9 @@ export function createStage() {
           : colors.back;
 
   const group = new THREE.Group();
-  scene.add(group);
+  const holder = new THREE.Group(); // leans the frame in the room view
+  holder.add(group);
+  scene.add(holder);
   let current = null;
   let framedFor = null;
   const loader = new THREE.TextureLoader();
@@ -95,6 +136,55 @@ export function createStage() {
     orbit.maxDistance = r * 10;
   }
 
+  function leaveRoom() {
+    dropRoom();
+    holder.visible = true;
+    studio.visible = true;
+    holder.rotation.set(0, 0, 0);
+    holder.position.set(0, 0, 0);
+    orbit.maxPolarAngle = Math.PI;
+    renderer.shadowMap.needsUpdate = true;
+  }
+
+  // Stand up the frame on the nightstand (or hang it on the wall for a hanger mount).
+  function placeInRoom(res, r) {
+    dropRoom();
+    if (!props) {
+      holder.visible = false;
+      loadProps().then((p) => {
+        props = p;
+        if (view.get().mode === "room") build();
+      });
+      return;
+    }
+    holder.visible = true;
+    studio.visible = false;
+    const tw = Math.max(520, res.outer[0] * 1.5 + 300);
+    room = buildRoom(tw, props);
+    scene.add(room);
+    const { mount } = project.get();
+    const hung = mount.type === "hanger";
+    const lean = hung ? 0 : ((mount.type === "stand" ? mount.angle : 12) * Math.PI) / 180;
+    holder.rotation.set(-lean, 0, 0);
+    holder.position.set(0, 0, 0);
+    holder.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(holder);
+    if (hung) holder.position.set(0, 300 - b.min.y, WALL_Z + 4 - b.min.z);
+    else holder.position.set(0, -b.min.y, WALL_Z + standDepth(tw) * 0.5 - b.min.z);
+    holder.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(holder);
+    const c = box.getCenter(new THREE.Vector3());
+    const d = Math.max(r, 150) * 4 + 600;
+    if (framedFor !== `room:${Math.round(r / 50)}:${hung}`) {
+      camera.position.set(c.x + d * 0.25, c.y + d * 0.28, d);
+      orbit.target.copy(c);
+      orbit.minDistance = 120;
+      orbit.maxDistance = 2600;
+    }
+    orbit.maxPolarAngle = Math.PI * 0.52;
+    framedFor = `room:${Math.round(r / 50)}:${hung}`;
+  }
+
   function build() {
     clear();
     photoPlane = null;
@@ -103,6 +193,7 @@ export function createStage() {
     const res = result.get().part;
     if (!res) return;
     if (mode === "plates") {
+      leaveRoom();
       const { x, y } = p.print;
       const { items } = platePlan(res, { x, y });
       const nPlates = Math.max(1, ...items.map((i) => i.plate + 1));
@@ -152,16 +243,17 @@ export function createStage() {
         geometry(q.mesh, [(cx / len) * rad * e, (cy / len) * rad * e, lz * e]),
         matFor(colorOf(q, p.colors)),
       );
+      mesh.castShadow = mesh.receiveShadow = true;
       group.add(mesh);
     }
     const L = res.layers;
     if (!p.litho.on && res.photo && L.zPhoto != null) {
       const [pw, ph] = res.photo;
       photoPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(pw - 0.4, ph - 0.4),
+        photoGeometry(p, res, pw - 0.4, ph - 0.4),
         new THREE.MeshStandardMaterial({
-          color: photoTex ? "#ffffff" : "#b9c7d6",
-          map: photoTex,
+          color: photoTex || mode === "room" ? "#ffffff" : "#b9c7d6",
+          map: photoTex ?? (mode === "room" ? catTexture((pw - 0.4) / (ph - 0.4)) : null),
           roughness: 0.9,
         }),
       );
@@ -169,6 +261,8 @@ export function createStage() {
       group.add(photoPlane);
     }
     const r = Math.max(res.outer[0], res.outer[1]);
+    if (mode === "room") return placeInRoom(res, r);
+    leaveRoom();
     const key2 = `${mode === "plates"}:${Math.round(r / 50)}`;
     if (framedFor !== key2) frameCamera(r, false);
     framedFor = key2;
@@ -194,6 +288,7 @@ export function createStage() {
       { value: "assembled", label: "Assembled" },
       { value: "exploded", label: "Exploded" },
       { value: "plates", label: "Plates" },
+      { value: "room", label: "Room" },
     ],
     onChange: (mode) => {
       framedFor = null;
@@ -227,7 +322,7 @@ export function createStage() {
   project.subscribe(() => current && build());
 
   (function loop() {
-    renderer.setClearColor(css("--m-bg", "#efe8da"));
+    renderer.setClearColor(room ? "#2a2522" : css("--m-bg", "#efe8da"));
     orbit.update();
     renderer.render(scene, camera);
     requestAnimationFrame(loop);

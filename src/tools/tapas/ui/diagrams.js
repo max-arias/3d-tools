@@ -268,39 +268,149 @@ const GLYPH = {
 };
 
 /**
- * One column per module frame. Pick a type in the palette, then tap an empty slot to add it or a
- * placed module to swap it. Modules past the frame's capacity are drawn in red below it.
+ * One column per module frame. Tap an empty slot to add a module there or a placed module to
+ * change it: a picker opens that only offers the types that fit. Drag a module to reorder it,
+ * within its frame or into another. Modules past the frame's capacity are drawn in red.
  * `flat`: a flat plate has no fixed slots; every module takes an equal share of the face.
  * Rows are half a slot tall, so a half teclon (1.5 slots) fits the grid.
  */
-export function baysDiagram({ groups, slots, flat = false, onChange }) {
-  let active = "tecla";
+export function baysDiagram({ groups, slots, flat = false, onChange, onMove }) {
+  let editing = null; // { g, i }; i === null adds at the end of frame g
+  let droppedAt = 0; // a click right after a drag is not a tap
   const wrap = h("div", { class: "bays-wrap" });
   const ids = flat ? FLAT_IDS : MODULE_IDS;
 
-  const palette = () =>
-    h(
+  /** Slots still free in a frame once the module at `i` (if any) is taken out. */
+  const freeFor = (group, i) =>
+    slots - usedSlots(group) + (i === null ? 0 : MODULES[group[i]].span);
+  const fits = (group, i, id) => {
+    if (flat) return i !== null || group.length < FLAT_MAX;
+    const cur = i === null ? 0 : MODULES[group[i]].span;
+    return MODULES[id].span <= freeFor(group, i) + 1e-9 || MODULES[id].span <= cur;
+  };
+
+  const open = (g, i) => {
+    editing = editing && editing.g === g && editing.i === i ? null : { g, i };
+    render();
+    wrap.querySelector(".pick-grid button:not([disabled])")?.focus();
+  };
+  const close = () => {
+    editing = null;
+    render();
+  };
+
+  const picker = () => {
+    const { g, i } = editing;
+    const group = groups[g];
+    const cur = i === null ? null : group[i];
+    const apply = (next) => {
+      editing = null;
+      onChange(g, next);
+    };
+    return h(
       "div",
-      { class: "palette", role: "group", "aria-label": t("pick") },
-      ids.map((id) =>
+      { class: "mod-picker", role: "group", "aria-label": t("pick") },
+      h(
+        "div",
+        { class: "pick-head" },
+        h(
+          "b",
+          {},
+          cur ? t("pickerChange", { n: g + 1, name: t(`m.${cur}`) }) : t("pickerAdd", { n: g + 1 }),
+        ),
         h(
           "button",
-          {
-            class: "pal",
-            "aria-pressed": String(active === id),
-            title:
-              !flat && MODULES[id].span !== 1 ? t("spanN", { n: MODULES[id].span }) : undefined,
-            onclick: () => {
-              active = id;
-              render();
-            },
-          },
-          h("span", { class: "glyph" }, GLYPH[id]),
-          t(`m.${id}`),
-          !flat && MODULES[id].span !== 1 ? h("small", {}, `×${MODULES[id].span}`) : null,
+          { class: "x", title: t("close"), "aria-label": t("close"), onclick: close },
+          "×",
         ),
       ),
+      h(
+        "div",
+        { class: "pick-grid" },
+        ids.map((id) => {
+          const ok = fits(group, i, id);
+          const span = MODULES[id].span;
+          return h(
+            "button",
+            {
+              class: "pal",
+              "aria-pressed": String(cur === id),
+              disabled: !ok,
+              title: ok
+                ? undefined
+                : t("noRoom", {
+                    name: t(`m.${id}`),
+                    n: span,
+                    free: Math.max(0, freeFor(group, i)),
+                  }),
+              onclick: () => apply(cur ? group.map((m, j) => (j === i ? id : m)) : [...group, id]),
+            },
+            h("span", { class: "glyph" }, GLYPH[id]),
+            t(`m.${id}`),
+            !flat && span !== 1 ? h("small", {}, `×${span}`) : null,
+          );
+        }),
+      ),
+      cur && (!flat || group.length > 1)
+        ? h(
+            "button",
+            { class: "pick-remove", onclick: () => apply(group.filter((_, j) => j !== i)) },
+            t("remove"),
+          )
+        : null,
     );
+  };
+
+  /** Where a dragged module would land: the frame under the pointer and the index among its blocks. */
+  function dropTarget(x, y) {
+    for (const cells of wrap.querySelectorAll(".cells")) {
+      const r = cells.getBoundingClientRect();
+      if (x < r.left || x > r.right) continue;
+      const rects = [...cells.querySelectorAll(".blk")].map((b) => b.getBoundingClientRect());
+      const at = rects.filter((b) => b.top + b.height / 2 < y).length;
+      const edge =
+        at < rects.length ? rects[at].top : rects.length ? rects[at - 1].bottom : r.top + 6;
+      return { g: Number(cells.dataset.g), i: at, cells, top: edge - r.top };
+    }
+    return null;
+  }
+
+  function dragStart(e, g, i) {
+    if (e.button !== 0 || e.target.closest(".x")) return;
+    const el = e.currentTarget;
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    let dragging = false;
+    let drop = null;
+    const line = h("div", { class: "drop-line" });
+    const move = (ev) => {
+      if (!dragging) {
+        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+        dragging = true;
+        el.classList.add("dragging");
+        wrap.classList.add("is-dragging");
+      }
+      drop = dropTarget(ev.clientX, ev.clientY);
+      if (drop) {
+        line.style.top = `${drop.top}px`;
+        if (line.parentNode !== drop.cells) drop.cells.append(line);
+      } else line.remove();
+    };
+    const end = (ev) => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", end);
+      document.removeEventListener("pointercancel", end);
+      line.remove();
+      el.classList.remove("dragging");
+      wrap.classList.remove("is-dragging");
+      if (!dragging) return;
+      droppedAt = performance.now();
+      if (drop && ev.type === "pointerup") onMove({ g, i }, { g: drop.g, i: drop.i });
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", end);
+    document.addEventListener("pointercancel", end);
+  }
 
   const removeBtn = (g, group, i) =>
     h(
@@ -317,50 +427,49 @@ export function baysDiagram({ groups, slots, flat = false, onChange }) {
       },
       "×",
     );
-  const swapBtn = (g, group, i, type) =>
+  const block = (g, group, i, style, over = false) => {
+    const type = group[i];
+    const isEditing = editing && editing.g === g && editing.i === i;
+    return h(
+      "div",
+      {
+        class: `blk${over ? " over" : ""}${isEditing ? " editing" : ""}`,
+        dataset: { type },
+        style,
+        onpointerdown: (e) => dragStart(e, g, i),
+      },
+      h(
+        "button",
+        {
+          class: "blk-main",
+          title: t("pickerChange", { n: g + 1, name: t(`m.${type}`) }),
+          onclick: () => performance.now() - droppedAt > 80 && open(g, i),
+        },
+        h("span", { class: "glyph" }, GLYPH[type]),
+        t(`m.${type}`),
+      ),
+      !flat || group.length > 1 ? removeBtn(g, group, i) : null,
+    );
+  };
+  const addBtn = (g, style) =>
     h(
       "button",
       {
-        class: "blk-main",
-        title: t("swap", { name: t(`m.${active}`) }),
-        onclick: () =>
-          onChange(
-            g,
-            group.map((m, j) => (j === i ? active : m)),
-          ),
+        class: `add-slot${editing && editing.g === g && editing.i === null ? " editing" : ""}`,
+        style,
+        title: t("add"),
+        onclick: () => open(g, null),
       },
-      h("span", { class: "glyph" }, GLYPH[type]),
-      t(`m.${type}`),
+      `+ ${t("add")}`,
     );
 
   /** Flat plate: the modules share the face equally, so each is one row of the same height. */
   function flatBay(group, g) {
     const room = group.length < FLAT_MAX;
     const rows = Math.max(1, group.length + (room ? 1 : 0));
-    const body = h("div", { class: "cells flat", style: `--rows:${rows}` });
-    group.forEach((type, i) =>
-      body.append(
-        h(
-          "div",
-          { class: "blk", dataset: { type }, style: `grid-row:${i + 1}` },
-          swapBtn(g, group, i, type),
-          group.length > 1 ? removeBtn(g, group, i) : null,
-        ),
-      ),
-    );
-    if (room)
-      body.append(
-        h(
-          "button",
-          {
-            class: "add-slot",
-            style: `grid-row:${group.length + 1}`,
-            title: t("addHere", { name: t(`m.${active}`) }),
-            onclick: () => onChange(g, [...group, active]),
-          },
-          `+ ${t(`m.${active}`)}`,
-        ),
-      );
+    const body = h("div", { class: "cells flat", dataset: { g }, style: `--rows:${rows}` });
+    group.forEach((_, i) => body.append(block(g, group, i, `grid-row:${i + 1}`)));
+    if (room) body.append(addBtn(g, `grid-row:${group.length + 1}`));
     return h(
       "div",
       { class: "bay" },
@@ -378,7 +487,7 @@ export function baysDiagram({ groups, slots, flat = false, onChange }) {
     if (flat) return flatBay(group, g);
     const used = usedSlots(group);
     const rows = Math.ceil(Math.max(slots, used) * 2);
-    const body = h("div", { class: "cells", style: `--rows:${rows}` });
+    const body = h("div", { class: "cells", dataset: { g }, style: `--rows:${rows}` });
     // Empty slot outlines first, so blocks sit on top.
     for (let i = 0; i < Math.ceil(Math.max(slots, used)); i++)
       body.append(
@@ -392,42 +501,20 @@ export function baysDiagram({ groups, slots, flat = false, onChange }) {
       const span = MODULES[type].span;
       const over = cursor + span > slots + 1e-9;
       body.append(
-        h(
-          "div",
-          {
-            class: `blk${over ? " over" : ""}`,
-            dataset: { type },
-            style: `grid-row:${Math.round(cursor * 2) + 1} / span ${Math.round(span * 2)}`,
-          },
-          swapBtn(g, group, i, type),
-          removeBtn(g, group, i),
+        block(
+          g,
+          group,
+          i,
+          `grid-row:${Math.round(cursor * 2) + 1} / span ${Math.round(span * 2)}`,
+          over,
         ),
       );
       cursor += span;
     });
-    // Free slots become add buttons, one per remaining slot.
+    // The free slots are one add button.
     const free = slots - used;
-    const need = MODULES[active].span;
-    if (free > 1e-9) {
-      body.append(
-        h(
-          "button",
-          {
-            class: "add-slot",
-            style: `grid-row:${Math.round(used * 2) + 1} / span ${Math.round(free * 2)}`,
-            disabled: need > free + 1e-9,
-            title:
-              need > free + 1e-9
-                ? t("noRoom", { name: t(`m.${active}`), n: need, free })
-                : t("addHere", { name: t(`m.${active}`) }),
-            onclick: () => onChange(g, [...group, active]),
-          },
-          need > free + 1e-9
-            ? t("noRoom", { name: t(`m.${active}`), n: need, free })
-            : `+ ${t(`m.${active}`)}`,
-        ),
-      );
-    }
+    if (free > 1e-9)
+      body.append(addBtn(g, `grid-row:${Math.round(used * 2) + 1} / span ${Math.round(free * 2)}`));
     return h(
       "div",
       { class: "bay" },
@@ -443,16 +530,20 @@ export function baysDiagram({ groups, slots, flat = false, onChange }) {
   }
 
   function render() {
-    if (!ids.includes(active)) active = "tecla";
     wrap.replaceChildren(
-      palette(),
       h(
         "div",
         { class: "bays" },
         groups.map((grp, g) => bay(grp, g)),
       ),
+      editing ? picker() : h("p", { class: "hint muted" }, t("dragHint")),
     );
   }
+  wrap.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !editing) return;
+    e.stopPropagation();
+    close();
+  });
   render();
   return wrap;
 }

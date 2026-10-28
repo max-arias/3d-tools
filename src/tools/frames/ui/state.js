@@ -1,3 +1,4 @@
+import { sampleSource } from "./room.js";
 import { createStore } from "../../../shell/store.js";
 import { run } from "../lib/client.js";
 import {
@@ -137,7 +138,7 @@ function generate() {
   const p = project.get();
   result.set({ status: "loading" });
   let extra;
-  const src = picture.get().src;
+  const src = picture.get().src ?? (p.litho.on ? sampleSource() : null);
   if (p.litho.on && src) {
     const w = p.photo.landscape ? p.photo.h : p.photo.w;
     const h = p.photo.landscape ? p.photo.w : p.photo.h;

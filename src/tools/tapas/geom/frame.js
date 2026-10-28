@@ -1,6 +1,6 @@
 import { decorate } from "./decorate.js";
 import { packResult } from "./relief.js";
-import { fitOutline } from "./shapes.js";
+import { placeOutline } from "./shapes.js";
 
 /** Ring that surrounds the existing tapa and stands on the wall. Face (top of the ring) at z = 0 when printed. */
 export function generateFrame(kit, p) {
@@ -13,14 +13,11 @@ export function generateFrame(kit, p) {
   const total = lift + f.h;
 
   const must = kit.rrect(pocketW + 2 * o.wall, pocketH + 2 * o.wall, pocketR + o.wall);
-  const { cs: outline } = fitOutline(
-    kit,
-    o.shape,
-    pocketW + 2 * o.wall,
-    pocketH + 2 * o.wall,
-    must,
-    o,
-  );
+  const {
+    cs: outline,
+    dx,
+    dy,
+  } = placeOutline(kit, o, pocketW + 2 * o.wall, pocketH + 2 * o.wall, must);
   const pocket = kit.rrect(pocketW, pocketH, pocketR);
   let body = kit.sub(kit.ext(outline, lift, total), kit.ext(pocket, lift - 1, total + 1));
 
@@ -48,6 +45,7 @@ export function generateFrame(kit, p) {
       plainBody,
       warnings,
       bounds: outline.bounds(),
+      placement: { dx, dy },
       total,
       pocket: [pocketW, pocketH, f.h],
     }),

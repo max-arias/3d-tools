@@ -7,7 +7,8 @@ import { generateFrame } from "../src/tools/frames/geom/frame.js";
 import { lithophane } from "../src/tools/frames/geom/litho.js";
 import { PROFILE_IDS, crossSection } from "../src/tools/frames/geom/profiles.js";
 import { fitAngle, planGrid } from "../src/tools/frames/geom/split.js";
-import { MINI_STYLE, defaultProject, merge, sanitize } from "../src/tools/frames/model/project.js";
+import { defaultProject, merge, sanitize } from "../src/tools/frames/model/project.js";
+import { STYLE_IDS, applyStyle } from "../src/tools/frames/model/styles.js";
 
 let wasm;
 beforeAll(async () => {
@@ -113,12 +114,15 @@ test("mounts: magnets need pockets, a stand adds a leg, slide-in leaves the back
   expect(part(slide, "frame").volume).toBeGreaterThan(part(none, "frame").volume);
 });
 
-test("mini style makes a valid slide-in magnet frame", () => {
-  const p = sanitize(merge(merge(defaultProject(), { photo: { size: "stamp" } }), MINI_STYLE));
-  const f = run(generateFrame, p);
-  expect(f.valid).toBe(true);
-  expect(f.parts.map((q) => q.role).sort()).toEqual(["frame"]);
-  expect(f.plan.nx * f.plan.ny).toBe(1);
+test("every preset builds a valid frame without warnings", () => {
+  for (const id of STYLE_IDS) {
+    const f = run(generateFrame, applyStyle(defaultProject(), id));
+    expect(f.valid, id).toBe(true);
+    expect(f.warnings, id).toEqual([]);
+  }
+  const mini = run(generateFrame, applyStyle(defaultProject(), "stampBlack"));
+  expect(mini.parts.map((q) => q.role).sort()).toEqual(["frame"]);
+  expect(mini.plan.nx * mini.plan.ny).toBe(1);
 });
 
 test("planGrid: whole when it fits (even on the diagonal), otherwise the fewest pieces that fit", () => {

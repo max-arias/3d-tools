@@ -1,7 +1,8 @@
 import { h } from "../../../shell/h.js";
 import { checkbox, numField, row, segmented } from "../../../shell/widgets.js";
 import { PROFILES, PROFILE_IDS, crossSection } from "../geom/profiles.js";
-import { MINI_STYLE, encodeShare, merge } from "../model/project.js";
+import { encodeShare } from "../model/project.js";
+import { STYLES, STYLE_IDS, applyStyle, matchesStyle } from "../model/styles.js";
 import { PHOTO_IDS, PHOTO_SIZES } from "../model/presets.js";
 import { PRINTERS } from "../model/printers.js";
 import { downloadCoupon, downloadGallery, download3mf, downloadStl, platePlan } from "./export.js";
@@ -45,19 +46,19 @@ const select = (key, value, options, onChange) =>
     options.map(([v, label]) => h("option", { value: v, selected: v === value }, label)),
   );
 
-/** Length field that shows mm or inches, always stores mm. */
+/** Length field that shows mm or cm, always stores mm. */
 function mmField(key, { value, min, max, step = 1, onChange }) {
-  const inch = view.get().unit === "in";
-  if (!inch) return numField({ value, min, max, step, unit: "mm", key, onChange });
-  const f = (v) => +(v / 25.4).toFixed(3);
+  if (view.get().unit !== "cm")
+    return numField({ value, min, max, step, unit: "mm", key, onChange });
+  const f = (v) => +(v / 10).toFixed(3);
   return numField({
     value: f(value),
     min: f(min),
     max: f(max),
-    step: Math.max(0.005, Math.round((step / 25.4) * 200) / 200),
-    unit: "in",
+    step: Math.max(0.01, step / 10),
+    unit: "cm",
     key,
-    onChange: (v) => onChange(+(v * 25.4).toFixed(3)),
+    onChange: (v) => onChange(+(v * 10).toFixed(3)),
   });
 }
 
@@ -84,6 +85,58 @@ function thumb(id) {
   p.setAttribute("points", pts);
   p.setAttribute("fill", "currentColor");
   svg.append(p);
+  return svg;
+}
+
+/** Front view of a preset: frame outline, opening and mat, to scale. */
+function styleThumb(id) {
+  const q = applyStyle({}, id);
+  const [pw, ph] = q.photo.landscape ? [q.photo.w, q.photo.h].reverse() : [q.photo.w, q.photo.h];
+  const m = q.moulding.width;
+  const W = pw + 2 * m;
+  const H = ph + 2 * m;
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const add = (tag, attrs) => {
+    const el = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    svg.append(el);
+  };
+  const outline = (x, y, w, hh, fill, shrink = 0) => {
+    const t = q.shape.type;
+    if (t === "oval")
+      add("ellipse", { cx: x + w / 2, cy: y + hh / 2, rx: w / 2, ry: hh / 2, fill });
+    else if (t === "circle")
+      add("circle", { cx: x + w / 2, cy: y + hh / 2, r: Math.min(w, hh) / 2, fill });
+    else
+      add("rect", {
+        x,
+        y,
+        width: w,
+        height: hh,
+        fill,
+        rx: t === "rounded" ? Math.max(q.shape.radius - shrink, 1) : 0,
+      });
+  };
+  outline(0, 0, W, H, q.colors.frame);
+  outline(m, m, pw, ph, "#7a8794", m);
+  if (q.mat.on) {
+    const b = q.mat.border;
+    outline(m, m, pw, ph, q.colors.mat, m);
+    outline(m + b, m + b, pw - 2 * b, ph - 2 * b, "#7a8794", m + b);
+    if (q.mat.edge !== "straight")
+      add("rect", {
+        x: m + 0.5,
+        y: m + 0.5,
+        width: pw - 1,
+        height: ph - 1,
+        fill: "none",
+        stroke: "#7a8794",
+        "stroke-width": Math.max(pw / 40, 0.6),
+        "stroke-dasharray": `${Math.max(pw / 25, 1)} ${Math.max(pw / 25, 1)}`,
+      });
+  }
   return svg;
 }
 
@@ -201,7 +254,31 @@ export function createSidebar(toast) {
       },
     });
 
+    const presets = h(
+      "div",
+      { class: "presets" },
+      STYLE_IDS.map((id) =>
+        h(
+          "button",
+          {
+            class: "preset",
+            "aria-pressed": String(matchesStyle(p, id)),
+            title: STYLES[id].note,
+            onclick: () => update((q) => Object.assign(q, applyStyle(q, id))),
+          },
+          styleThumb(id),
+          h("span", {}, STYLES[id].label),
+        ),
+      ),
+    );
+
     root.replaceChildren(
+      section(
+        "presets",
+        "Presets",
+        presets,
+        h("p", { class: "muted small" }, "A starting look. Everything below stays editable."),
+      ),
       gallerySection(),
       section(
         "photo",
@@ -266,14 +343,6 @@ export function createSidebar(toast) {
             pic.src ? "Change picture" : "Preview with my picture",
           ),
           pic.src && h("button", { onclick: clearPicture }, "Remove"),
-          h(
-            "button",
-            {
-              title: "Slim box frame, slide-in back, magnet",
-              onclick: () => update((q) => Object.assign(q, merge(q, MINI_STYLE))),
-            },
-            "Mini setup",
-          ),
         ),
         fileInput,
         h(

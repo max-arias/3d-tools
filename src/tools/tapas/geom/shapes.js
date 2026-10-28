@@ -160,25 +160,91 @@ export const SHAPES = {
 export const SHAPE_IDS = Object.keys(SHAPES);
 
 /**
- * Smallest scaling (from the w x h box) of shape `id` that still contains `must`.
+ * Smallest scaling (from the w x h box) of shape `id` that still contains `must`, for a shape
+ * turned by `rot` degrees and centred at (dx, dy). `iters` trades precision for speed.
  * Returns { cs, k } where k = 1 means the outline is exactly w x h.
  */
-export function fitOutline(kit, id, w, h, must, opts) {
+function fitAt(kit, id, w, h, must, opts, { rot = 0, dx = 0, dy = 0 } = {}, iters = 22) {
   const shape = SHAPES[id];
-  const make = (k) =>
-    shape.round
+  const make = (k) => {
+    const base = shape.round
       ? shape.build(kit, k * Math.max(w, h), k * Math.max(w, h), opts)
       : shape.build(kit, k * w, k * h, opts);
+    const turned = rot ? kit.own(base.rotate(rot)) : base;
+    return dx || dy ? kit.own(turned.translate([dx, dy])) : turned;
+  };
   const contains = (cs) => kit.csSub(must, cs).area() < 0.05;
-  let lo = shape.round ? 0.5 : 1;
+  let lo = 0.3;
   let cs = make(lo);
-  if (contains(cs)) return { cs, k: lo };
+  if (contains(cs)) return { cs, k: lo, make };
   let hi = lo * 1.5;
-  while (!contains((cs = make(hi))) && hi < 12) hi *= 1.5;
-  for (let i = 0; i < 16; i++) {
+  while (!contains((cs = make(hi))) && hi < 40) hi *= 1.5;
+  for (let i = 0; i < iters; i++) {
     const mid = (lo + hi) / 2;
     if (contains(make(mid))) hi = mid;
     else lo = mid;
   }
-  return { cs: make(hi), k: hi };
+  return { cs: make(hi), k: hi, make };
+}
+
+export const fitOutline = (kit, id, w, h, must, opts, at) => fitAt(kit, id, w, h, must, opts, at);
+
+/** Shapes with a centre of symmetry: the plate is too, so centred is already the tightest fit. */
+export const CENTRED = new Set([
+  "rect",
+  "rounded",
+  "stadium",
+  "oval",
+  "squircle",
+  "scallop",
+  "diamond",
+  "octagon",
+  "clover",
+  "circle",
+  "hexagon",
+  "flower",
+]);
+
+/** Offset (dx, dy) that lets the shape, turned by `rot`, cover `must` at the smallest size. */
+function bestOffset(kit, id, w, h, must, opts, rot) {
+  if (CENTRED.has(id)) return { dx: 0, dy: 0 };
+  const span = Math.max(w, h);
+  const cost = (dx, dy) => fitAt(kit, id, w, h, must, opts, { rot, dx, dy }, 9).k;
+  let best = { dx: 0, dy: 0, k: cost(0, 0) };
+  const tryAt = (dx, dy) => {
+    const k = cost(dx, dy);
+    if (k < best.k * 0.995) best = { dx, dy, k }; // ties stay centred
+  };
+  const reach = span * 0.25;
+  for (let i = -2; i <= 2; i++)
+    for (let j = -2; j <= 2; j++) tryAt((i * reach) / 2, (j * reach) / 2);
+  for (let step = reach / 4; step > 0.4; step /= 2) {
+    for (const [ax, ay] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ])
+      tryAt(best.dx + ax * step, best.dy + ay * step);
+  }
+  const r = (v) => Math.round(v * 10) / 10;
+  return { dx: r(best.dx), dy: r(best.dy) };
+}
+
+/**
+ * The outline of the project's shape: turned, placed and grown as the overlay asks, never smaller
+ * than what covers `must`. place "auto" looks for the offset that gives the smallest shape.
+ * Returns { cs, k, dx, dy }.
+ */
+export function placeOutline(kit, o, w, h, must) {
+  const rot = o.rot ?? 0;
+  const auto = (o.place ?? "auto") === "auto";
+  const { dx, dy } = auto
+    ? bestOffset(kit, o.shape, w, h, must, o, rot)
+    : { dx: o.dx ?? 0, dy: o.dy ?? 0 };
+  const fit = fitAt(kit, o.shape, w, h, must, o, { rot, dx, dy });
+  // A fixed size (mm, longest side) is a floor: the shape is never smaller than what covers `must`.
+  const k =
+    o.size != null ? Math.max(o.size / Math.max(w, h), fit.k) : fit.k * (1 + (o.grow ?? 0) / 100);
+  return { cs: k === fit.k ? fit.cs : fit.make(k), k, dx, dy };
 }

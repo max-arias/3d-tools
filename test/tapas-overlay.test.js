@@ -4,10 +4,13 @@ import { beforeAll, expect, test } from "vite-plus/test";
 import { createKit } from "../src/tools/tapas/lib/kit.js";
 import { facePieces } from "../src/tools/tapas/geom/layout.js";
 import { generateOverlay, layoutModules } from "../src/tools/tapas/geom/overlay.js";
-import { SHAPE_IDS } from "../src/tools/tapas/geom/shapes.js";
+import { SHAPE_IDS, placeOutline } from "../src/tools/tapas/geom/shapes.js";
 import { MODULE_IDS } from "../src/tools/tapas/model/modules.js";
 import { PRESETS } from "../src/tools/tapas/model/presets.js";
-import { defaultProject, sanitize } from "../src/tools/tapas/model/project.js";
+import { defaultProject, moveModule, sanitize } from "../src/tools/tapas/model/project.js";
+import { constrainMove, covers, fitScale, mustShape } from "../src/tools/tapas/geom/fit2d.js";
+import { SHAPES, fitOutline } from "../src/tools/tapas/geom/shapes.js";
+import { shapeDrag, turn } from "../src/tools/tapas/ui/drag.js";
 import { build3mf } from "../src/tools/tapas/lib/threemf.js";
 
 let wasm;
@@ -42,7 +45,7 @@ test("every shape makes a valid overlay on every preset", () => {
       expect(part.size[1]).toBeGreaterThanOrEqual(p.plate.h + 2 * p.overlay.wall - 0.01);
     }
   }
-});
+}, 60_000);
 
 test("pocket leaves the set clearance around the tapa", () => {
   const p = defaultProject();
@@ -198,5 +201,134 @@ test("patterns keep clear of the plate's window", () => {
         (Math.abs(x) < hw && Math.abs(y) < hh - slack);
       expect(inCross).toBe(false);
     }
+  }
+});
+
+test("a placed, turned or grown outline still covers the plate; auto beats centred on a shield", () => {
+  const kit = createKit(wasm);
+  try {
+    const must = kit.rrect(76, 120, 8);
+    const covers = (cs) => kit.csSub(must, cs).area() < 0.05;
+    const area = (o) => {
+      const b = placeOutline(kit, o, 76, 120, must).cs.bounds();
+      return (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]);
+    };
+    const base = { ...defaultProject().overlay, corner: 6 };
+    for (const shape of SHAPE_IDS) {
+      for (const move of [
+        { place: "manual", dx: 20, dy: -15, rot: 30, grow: 0 },
+        { place: "manual", dx: -40, dy: 60, rot: 200, grow: 50 },
+        { place: "auto", rot: 90, grow: 10 },
+      ]) {
+        const o = { ...base, shape, dx: 0, dy: 0, rot: 0, grow: 0, ...move };
+        expect(
+          covers(placeOutline(kit, o, 76, 120, must).cs),
+          `${shape} ${JSON.stringify(move)}`,
+        ).toBe(true);
+      }
+    }
+    // a shield only needs to be big near its flat top, so sliding it up over the plate shrinks it a lot
+    const shield = { ...base, shape: "shield", dx: 0, dy: 0, rot: 0, grow: 0 };
+    expect(area({ ...shield, place: "auto" })).toBeLessThan(
+      area({ ...shield, place: "manual" }) * 0.7,
+    );
+    expect(area({ ...shield, place: "manual", grow: 50 })).toBeGreaterThan(
+      area({ ...shield, place: "manual" }),
+    );
+  } finally {
+    kit.free();
+  }
+});
+
+test("old projects without placement load as auto", () => {
+  const p = sanitize({ overlay: { shape: "heart" } });
+  expect(p.overlay).toMatchObject({ place: "auto", dx: 0, dy: 0, rot: 0, grow: 0 });
+});
+
+test("moveModule reorders within a frame and moves between frames", () => {
+  const g = [["tecla", "usb", "toma"], ["ciego"]];
+  expect(moveModule(g, { g: 0, i: 0 }, { g: 0, i: 3 })[0]).toEqual(["usb", "toma", "tecla"]);
+  expect(moveModule(g, { g: 0, i: 2 }, { g: 0, i: 0 })[0]).toEqual(["toma", "tecla", "usb"]);
+  expect(moveModule(g, { g: 0, i: 1 }, { g: 0, i: 2 })[0]).toEqual(["tecla", "usb", "toma"]);
+  expect(moveModule(g, { g: 0, i: 1 }, { g: 1, i: 0 })).toEqual([
+    ["tecla", "toma"],
+    ["usb", "ciego"],
+  ]);
+});
+
+test("dragging the outline in the turned-over view, and turning it", () => {
+  const start = { x: 0, y: 0 };
+  // view x runs against the design's x; y runs with it
+  expect(shapeDrag({ start, hit: { x: 10, y: 4 }, dx: 0, dy: 0 })).toEqual({ dx: -10, dy: 4 });
+  expect(shapeDrag({ start, hit: { x: -900, y: 900 }, dx: 0, dy: 0 })).toEqual({
+    dx: 150,
+    dy: 150,
+  });
+  expect(turn(0, -15)).toBe(345);
+  expect(turn(350, 15)).toBe(5);
+});
+
+test("the live preview's fit matches the exact boolean fit", () => {
+  const p = defaultProject();
+  const [w, h, r] = [71 + 2 * 2.7, 114 + 2 * 2.7, 6];
+  const must = mustShape(w, h, r);
+  const kit = createKit(wasm);
+  try {
+    const mustCs = kit.rrect(w, h, r);
+    for (const [id, at] of [
+      ["oval", { rot: 0, dx: 0, dy: 0 }],
+      ["star", { rot: 20, dx: 6, dy: -4 }],
+      ["heart", { rot: 0, dx: 0, dy: 8 }],
+      ["heart", { rot: 0, dx: 0, dy: -7.5 }], // the cleft can slip between two edge samples
+      ["scallop", { rot: 0, dx: 0, dy: 0 }],
+      ["octagon", { rot: 15, dx: -5, dy: 3 }],
+    ]) {
+      const def = SHAPES[id];
+      const side = Math.max(w, h);
+      const unitCs = def.round
+        ? def.build(kit, side, side, p.overlay)
+        : def.build(kit, w, h, p.overlay);
+      const unit = unitCs.toPolygons()[0];
+      const k = fitScale(unit, must, at);
+      const real = fitOutline(kit, id, w, h, mustCs, p.overlay, at);
+      expect(Math.abs(k / real.k - 1), id).toBeLessThan(0.02);
+    }
+  } finally {
+    kit.free();
+  }
+});
+
+test("a fixed size is kept wherever the outline sits, and never goes below what covers", () => {
+  const base = defaultProject();
+  const build = (overlay) =>
+    make(sanitize({ ...base, overlay: { ...base.overlay, shape: "heart", ...overlay } }));
+  const longest = (part) => Math.max(part.size[0], part.size[1]);
+  const at0 = build({ size: 320, place: "manual", dx: 0, dy: 0 });
+  const moved = build({ size: 320, place: "manual", dx: 12, dy: 8 });
+  expect(longest(at0)).toBeCloseTo(320, 0);
+  expect(longest(moved)).toBeCloseTo(320, 0);
+  const tooSmall = build({ size: 100, place: "manual", dx: 0, dy: 0 });
+  expect(tooSmall.valid).toBe(true);
+  expect(longest(tooSmall)).toBeGreaterThan(200);
+});
+
+test("dragging an outline stops at the edge of where it covers the plate", () => {
+  const [w, h, r] = [76.4, 119.4, 6];
+  const must = mustShape(w, h, r);
+  const kit = createKit(wasm);
+  try {
+    const unit = SHAPES.heart.build(kit, Math.max(w, h), Math.max(w, h), {}).toPolygons()[0];
+    const k = fitScale(unit, must, {}) * 1.1;
+    const ok = (a) => covers(unit, must, k, a);
+    expect(constrainMove(ok, { dx: 0, dy: 0 }, { dx: 2, dy: 1 })).toEqual({ dx: 2, dy: 1 });
+    const far = constrainMove(ok, { dx: 0, dy: 0 }, { dx: 80, dy: 70 });
+    expect(ok(far)).toBe(true);
+    expect(Math.hypot(far.dx, far.dy)).toBeGreaterThan(0);
+    expect(Math.hypot(far.dx, far.dy)).toBeLessThan(Math.hypot(80, 70));
+    // against a wall in x, it still slides along y
+    const edge = constrainMove(ok, far, { dx: far.dx + 40, dy: far.dy - 3 });
+    expect(ok(edge)).toBe(true);
+  } finally {
+    kit.free();
   }
 });

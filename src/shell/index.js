@@ -23,6 +23,24 @@ const tools = [
     desc: "Picture frames in any size, profile and shape, with mat, back, stand or magnets. Big frames are split to your bed. Download the STL or 3MF.",
     icon: "cube",
   },
+  {
+    href: "/lamps/",
+    name: "Lamps",
+    desc: "Shape a lampshade with a drag-able profile, ribs and twist, fit an E27 or E14 socket holder, and download the STL.",
+    icon: "cube",
+  },
+  {
+    href: "/letters/",
+    name: "Channel letters",
+    desc: "Turn text or an SVG logo into hollow box letters for LED strips, each with a diffuser lid, laid out on your print plates.",
+    icon: "cube",
+  },
+  {
+    href: "/boxes/",
+    name: "Storage boxes",
+    desc: "Latching Gridfinity carry cases with hinges, label and handle, plus the bins that go inside, in ready-made packs.",
+    icon: "grid",
+  },
   { name: "More coming", desc: "Other small tools for printing will live here.", icon: "cube" },
 ];
 

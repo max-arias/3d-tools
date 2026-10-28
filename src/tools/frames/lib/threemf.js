@@ -27,12 +27,19 @@ function meshXml(id, name, mesh) {
  * Returns positions [{ x, y, plate }], the plate count, and whether every part fits a plate alone.
  */
 export function packPlates(sizes, bed, gap = 4) {
+  // A size with `newPlate: true` starts a fresh plate (print groups that must not share one).
   let plate = 0;
   let x = gap;
   let y = gap;
   let rowH = 0;
   let fits = true;
-  const positions = sizes.map(({ w, h }) => {
+  const positions = sizes.map(({ w, h, newPlate }) => {
+    if (newPlate && x > gap) {
+      plate++;
+      x = gap;
+      y = gap;
+      rowH = 0;
+    }
     if (w + 2 * gap > bed.x || h + 2 * gap > bed.y) fits = false;
     if (x > gap && x + w + gap > bed.x) {
       x = gap;
@@ -59,7 +66,7 @@ export function packPlates(sizes, bed, gap = 4) {
  */
 export function build3mf({ items, bed, title = "Frames" }) {
   const { positions, plates: plateCount } = packPlates(
-    items.map((i) => ({ w: i.size[0], h: i.size[1] })),
+    items.map((i) => ({ w: i.size[0], h: i.size[1], newPlate: i.newPlate })),
     bed,
   );
   const cols = Math.ceil(Math.sqrt(plateCount));
