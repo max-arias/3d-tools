@@ -54,8 +54,8 @@ export function packPlates(sizes, bed, gap = 4) {
 }
 
 /**
- * items: [{ name, size: [x, y], bodies: [{ name, mesh }] }]; bodies keep their relative position and
- * become extruders 1, 2, ... in order. Returns Uint8Array.
+ * items: [{ name, size: [x, y], bodies: [{ name, mesh, extruder? }] }]; bodies keep their relative
+ * position and become extruders 1, 2, ... in order unless a body names its extruder. Returns Uint8Array.
  */
 export function build3mf({ items, bed, title = "Tapas" }) {
   const { positions, plates: plateCount } = packPlates(
@@ -94,12 +94,12 @@ export function build3mf({ items, bed, title = "Tapas" }) {
         ? ids
             .map(
               (id, i) =>
-                `<part id="${id}" subtype="normal_part"><metadata key="name" value="${esc(item.bodies[i].name)}"/><metadata key="extruder" value="${i + 1}"/></part>`,
+                `<part id="${id}" subtype="normal_part"><metadata key="name" value="${esc(item.bodies[i].name)}"/><metadata key="extruder" value="${item.bodies[i].extruder ?? i + 1}"/></part>`,
             )
             .join("")
         : "";
     settings.push(
-      `<object id="${buildId}"><metadata key="name" value="${esc(item.name)}"/><metadata key="extruder" value="1"/>${parts}</object>`,
+      `<object id="${buildId}"><metadata key="name" value="${esc(item.name)}"/><metadata key="extruder" value="${item.bodies[0].extruder ?? 1}"/>${parts}</object>`,
     );
   });
 

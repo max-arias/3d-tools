@@ -41,6 +41,12 @@ const tools = [
     desc: "Latching Gridfinity carry cases with hinges, label and handle, plus the bins that go inside, in ready-made packs.",
     icon: "grid",
   },
+  {
+    href: "/clocks/",
+    name: "Clocks",
+    desc: "Turn a shape, an SVG or a picture into a wall, desk or fridge clock for a quartz movement, with multi-colour inlays, printed hands and an LED halo.",
+    icon: "cube",
+  },
   { name: "More coming", desc: "Other small tools for printing will live here.", icon: "cube" },
 ];
 

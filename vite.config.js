@@ -12,6 +12,7 @@ export default defineConfig({
         lamps: resolve(import.meta.dirname, "lamps/index.html"),
         letters: resolve(import.meta.dirname, "letters/index.html"),
         boxes: resolve(import.meta.dirname, "boxes/index.html"),
+        clocks: resolve(import.meta.dirname, "clocks/index.html"),
       },
     },
   },
